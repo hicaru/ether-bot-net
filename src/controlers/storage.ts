@@ -116,4 +116,10 @@ export class Storage {
     });
   }
 
+  public async getAddresses(data: Interfaces.IPaginate) {
+    const cursor = await this.connet();
+
+    return await cursor.manager.find(Address, data);
+  }
+
 }

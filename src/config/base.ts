@@ -34,6 +34,11 @@ export namespace Interfaces {
     data?: any;
     gas?: number | string;
   }
+
+  export interface IPaginate {
+    take?: number;
+    skip?: number;
+  }
 }
 
 export namespace Config {

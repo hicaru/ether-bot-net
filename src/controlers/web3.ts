@@ -1,3 +1,6 @@
+import { from, Observable } from 'rxjs';
+import { map } from 'rxjs/operators';
+
 import { Wallet } from '../ether/wallet';
 import { Storage } from './storage';
 import { Interfaces } from '../config/base';
@@ -39,7 +42,22 @@ export class Web3Control extends Wallet {
     data.gasLimit = data.gasLimit || 210000;
     data.nonce = nonce;
 
-    this.sendTransaction(data).subscribe(console.log);
+    const block = this.sendTransaction(data).subscribe(blockOrHash => {
+      console.log(blockOrHash);
+    }, err => {
+      console.log(err); 
+    }, () => {
+      console.log('done');
+      block.unsubscribe();
+    });
+  }
+
+  public async onSingleBalance(address: string): Promise<string | number> {
+    return await this.eth.getBalance(address);
+  }
+
+  public onAllBalance(data: Interfaces.IPaginate) {
+    // TODO: all balance.
   }
 
 }
