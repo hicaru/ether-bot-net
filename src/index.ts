@@ -4,13 +4,17 @@ import { Web3Control } from './controlers/web3';
 
 createConnection().then(async connection => {
 
-  const wallet = new Web3Control('12345678');
+  const wallet = new Web3Control('12345678', 100);
 
   // wallet.onSingleTx({
-  //   from: '0x0a2185b293f318be04C012bF92E216Fd248Ba479',
-  //   to: '0x68a8191add50d107BB8b25f3Feea172c35Cf2685',
+  //   from: '0x4D89aBeDA15d4bb433D4E3FF06D10845F2783af0',
+  //   to: '0xBE32363Fa3C46e43B90CE35ae6d209e2e1ed07C9',
   //   value: 10000000000
   // });
 
-  wallet.onAllBalance({ take: 100, skip: 0 });
+  // wallet.onSingleBalance('0x4D89aBeDA15d4bb433D4E3FF06D10845F2783af0').then(console.log);
+
+  await wallet.onAllBalance({ take: 100, skip: 0 });
+
+  // wallet.onAccountSync('0x4D89aBeDA15d4bb433D4E3FF06D10845F2783af0', {take: 100, skip: 0});
 }).catch(error => console.log(error));

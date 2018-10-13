@@ -15,7 +15,7 @@ export class Storage {
 
   private connet = getConnection;
 
-  public encryptAccaunt = new Promise(async (resolve, reject) => {
+  public encryptAccaunt: Promise<Account[]> = new Promise(async (resolve, reject) => {
     const cursor = await this.connet();
     let accaunts: Promise<Account[]>;
 
@@ -120,6 +120,12 @@ export class Storage {
     const cursor = await this.connet();
 
     return await cursor.manager.find(Address, data);
+  }
+
+  public async count(): Promise<number> {
+    const cursor = await this.connet();
+
+    return await cursor.manager.count(Address);
   }
 
 }
