@@ -1,6 +1,7 @@
 import { getConnection } from 'typeorm';
 import { from } from 'rxjs';
 import { map } from 'rxjs/operators';
+import { validate } from 'class-validator';
 
 import { Interfaces } from '../config/base';
 import { Account } from '../entity/accaunt';
@@ -8,7 +9,7 @@ import { Cipherparams } from '../entity/cipherparams';
 import { Kdfparams } from '../entity/kdfparams';
 import { Crypto } from '../entity/crypto';
 import { Address } from '../entity/address';
-import { validate } from 'class-validator';
+import { Tx } from '../entity/tx';
 
 
 export class Storage {
@@ -126,6 +127,38 @@ export class Storage {
     const cursor = await this.connet();
 
     return await cursor.manager.count(Address);
+  }
+
+  public async onSetTx(data: object): Promise<void> {
+    const cursor = await this.connet();
+    const tx = new Tx();
+
+    tx.transactionHash = data['transactionHash'];
+    tx.address = data['address']['id'];
+
+    try {
+      cursor.manager.save(Tx, tx);
+    } catch (err) {
+      return null;
+    }
+  }
+
+  public async onUpdateTx(block: Tx): Promise<void> {
+    const cursor = await this.connet();
+    const tx = new Tx();
+
+    Object.keys(block).forEach(key => {
+      tx[key] = block[key];
+    });
+
+    try {
+      cursor.manager.update(Tx,
+        { transactionHash: tx.transactionHash },
+        tx
+      );
+    } catch (err) {
+      return null;
+    }
   }
 
 }

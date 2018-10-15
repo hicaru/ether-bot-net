@@ -1,3 +1,5 @@
+import { Tx } from "../entity/tx";
+
 export namespace Interfaces {
   export interface IEncryptAccaunt {
     version: number;
@@ -21,7 +23,7 @@ export namespace Interfaces {
 
   export interface ITx {
     hash?: string;
-    block?: object;
+    block?: Tx;
   }
 
   export interface ITxData {
@@ -39,10 +41,19 @@ export namespace Interfaces {
     take?: number;
     skip?: number;
   }
+
+  export interface ITxFuncInput {
+    address: string;
+    data: IPaginate;
+    min: number;
+    max: number;
+    gas: { min: number, max: number },
+    time: { min: number, max: number }
+  }
 }
 
 export namespace Config {
   export enum Cnf {
-    HttpProvider = 'https://ROPSTEN.infura.io/v3/d9877ecb6cf349baa97ca282de1f2ed4'
+    HttpProvider = 'https://kovan.infura.io/v3/d9877ecb6cf349baa97ca282de1f2ed4'
   }
 }
