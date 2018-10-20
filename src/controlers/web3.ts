@@ -8,6 +8,19 @@ import { Utils } from './utils';
 
 
 export class Web3Control extends Wallet {
+  /**
+   * @param storage: Вatabase instance controller.
+   * @param gasPrice: Default gas value.
+   * @param gasLimit: Default gas limit value.
+
+   * @method preStart: For encrypt or create wallet.
+   * @method onCreateWallet: Create wallet.
+   * @method onSingleTx: Create one transaction.
+   * @method onSingleBalance: Get one address balance.
+   * @method onAllBalance: Get all accaunts balance.
+   * @method onAccountSync: Account balance synchronization.
+   * @method onPoolMapTx: Create pool transactions with interval.
+   */
 
   private storage = new Storage();
   
@@ -15,11 +28,18 @@ export class Web3Control extends Wallet {
   public gasLimit = 210000;
 
   constructor(password: string, numberof: number = 5) {
+    /**
+     * @param password: Password for encrypt accaunt.
+     * @param numberof: This number, a number of accounts.
+     */
     super();
     this.preStart(password, numberof);
   }
 
   private async preStart(password: string, numberof: number) {
+    /**
+     * @returns: Decrypt wallet.
+     */
     let encryptWallet = await this.storage.encryptAccaunt;
 
     if (encryptWallet.length <= 0) {
@@ -39,6 +59,9 @@ export class Web3Control extends Wallet {
   }
 
   public async onSingleTx(data: Interfaces.ITxData) {
+    /**
+     * @param data: Transaction data object.
+     */
     const nonce = await this.eth.getTransactionCount(data.from);
     
     data.gasPrice = data.gasPrice || 3000000000;
@@ -56,10 +79,16 @@ export class Web3Control extends Wallet {
   }
 
   public async onSingleBalance(address: string): Promise<string | number> {
+    /**
+     * @param address: Ether address in hex.
+     */
     return await this.eth.getBalance(address);
   }
 
   public async onAllBalance(data: Interfaces.IPaginate) {
+    /**
+     * @param data: Type orm object, limit or ofset.
+     */
     const addresess = await this.storage.getAddresses(data);
 
     const balance = addresess.map(async address => {
@@ -77,6 +106,10 @@ export class Web3Control extends Wallet {
   }
 
   public async onAccountSync(address: string, data: Interfaces.IPaginate) {
+    /**
+     * @param address: Ether address in hex.
+     * @param data: Type orm data limit and ofset.
+     */
     const count = await this.storage.count();
     const balance = await this.onSingleBalance(address);
     const toEach = +balance / count;
@@ -85,6 +118,7 @@ export class Web3Control extends Wallet {
     const source = from(addresess);
 
     source.pipe(map(storeAddress => {
+      // Sorting. //
       const txData = <Interfaces.ITxData>{
         nonce: nonce,
         from: address,
@@ -98,11 +132,15 @@ export class Web3Control extends Wallet {
       
       return txData;
     })).forEach(txData => {
+      // Sending transaction.
       this.sendTransaction(txData).subscribe(console.log);
     });
   }
 
   public async onPoolMapTx(inputs: Interfaces.ITxFuncInput): Promise<Observable<any>> {
+    /**
+     * @param inputs: Inputs object for Sendig transactionCount.
+     */
     const addresess = await this.storage.getAddresses(inputs.data);
     const source = from(addresess);
 

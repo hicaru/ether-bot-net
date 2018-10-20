@@ -5,6 +5,17 @@ import { Interfaces } from '../config/base';
 import { Observable } from 'rxjs';
 
 export class Wallet {
+  /**
+   * @param _web3: Web3 Object, for work with ether.
+   * @param eth: web3.eth.
+   * @param accounts: web3.eth.accounts.
+   * @param utils: web3.utils.
+   * @param addresses: web3.eth.getAccounts.
+   * 
+   * @method onGenWallets: Wallet generation.
+   * @method onEncrypt: Wallet encrypt.
+   * @method sendTransaction: Create and send transaction.
+   */
 
   private _web3 = new Web3(Config.Cnf.HttpProvider);
   protected eth = this._web3.eth;
