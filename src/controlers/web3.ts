@@ -1,9 +1,10 @@
+import 'colors';
 import { from, Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 
 import { Wallet } from '../ether/wallet';
 import { Storage } from './storage';
-import { Interfaces } from '../config/base';
+import { Interfaces, Config } from '../config/base';
 import { Utils } from './utils';
 
 
@@ -26,6 +27,8 @@ export class Web3Control extends Wallet {
   
   public gasPrice = 3000000000;
   public gasLimit = 210000;
+  
+  public env = Config.ENV.console;
 
   constructor(password: string, numberof: number = 5) {
     /**
@@ -34,6 +37,23 @@ export class Web3Control extends Wallet {
      */
     super();
     this.preStart(password, numberof);
+  }
+
+  private onConsoleTxShow(blockOrHash: Interfaces.ITx, data: Interfaces.ITxData) {
+    if (blockOrHash.hash) {
+      console.log(
+        `tx hash: ${blockOrHash.hash},`.green,
+        `to: ${data.to},`.blue,
+        `gas price: ${this.utils.fromWei(data.gasPrice, 'gwei')} gwei`.red
+      );
+    } else if (blockOrHash.block) {
+      console.log(
+        `block number: ${blockOrHash.block.blockNumber},`.blue,
+        'status: ' + blockOrHash.block.status ? 'true'.green : 'false'.red,
+        `address: ${data.from}`.cyan,
+        `tx hash: ${blockOrHash.block.transactionHash}`.white
+      );
+    }
   }
 
   private async preStart(password: string, numberof: number) {
@@ -98,9 +118,16 @@ export class Web3Control extends Wallet {
       }
     });
 
-    balance.forEach(async el => {
-      console.log(await el);
-    });
+    if (this.env === Config.ENV.console) {
+      balance.forEach(async el => {
+        const balance = await el;
+  
+        console.log(
+          balance.address.green,
+          this.utils.fromWei(balance.balance, 'ether').cyan
+        );
+      });
+    }
 
     return balance;
   }
@@ -112,28 +139,47 @@ export class Web3Control extends Wallet {
      */
     const count = await this.storage.count();
     const balance = await this.onSingleBalance(address);
-    const toEach = +balance / count;
+    const toEach = (+balance / count).toFixed();
     const addresess = await this.storage.getAddresses(data);
     let nonce = await this.eth.getTransactionCount(address);
     const source = from(addresess);
 
     source.pipe(map(storeAddress => {
       // Sorting. //
-      const txData = <Interfaces.ITxData>{
-        nonce: nonce,
-        from: address,
-        to: storeAddress.address,
-        value: toEach,
-        gasPrice: this.gasPrice,
-        gasLimit: this.gasLimit
-      };
+      const txData = {
+        data: <Interfaces.ITxData>{
+          nonce: nonce,
+          from: address,
+          to: storeAddress.address,
+          value: toEach,
+          gasPrice: this.gasPrice,
+          gasLimit: this.gasLimit
+        },
+        address: storeAddress
+      }
 
       nonce++;
       
       return txData;
     })).forEach(txData => {
-      // Sending transaction.
-      this.sendTransaction(txData).subscribe(console.log);
+      const data = txData.data;
+      const txBlock = this.sendTransaction(data).subscribe(blockOrHash => {
+        if (blockOrHash.hash) {
+          this.storage.onSetTx({
+            transactionHash: blockOrHash.hash,
+            address: txData.address
+          });
+        }
+
+        if (this.env === Config.ENV.console) {
+          this.onConsoleTxShow(blockOrHash, data);
+        }
+
+        if (blockOrHash.block) {
+          this.storage.onUpdateTx(blockOrHash.block);
+          txBlock.unsubscribe();
+        }
+      });
     });
   }
 
@@ -150,7 +196,7 @@ export class Web3Control extends Wallet {
           txData: <Interfaces.ITxData>{
             from: storeAddress.address,
             to: inputs.address,
-            value: Utils.onRandom(inputs.min, inputs.max),
+            value: Utils.onRandom(inputs.min, inputs.max).toFixed(),
             gasPrice: Utils.onRandom(inputs.gas.min, inputs.gas.max),
             gasLimit: this.gasLimit
           },
@@ -162,6 +208,14 @@ export class Web3Control extends Wallet {
 
         setTimeout(async () => {
           data.nonce = await this.eth.getTransactionCount(data.from);
+          const balance = await this.onSingleBalance(data.from);
+
+          if (+balance <= +data.value) {
+            // If random value > balance this address. //
+            // gasPrice * gasLimit = Actual Tx Cost/Fee. //
+            data.value = (+balance - (+data.gasPrice * +data.gasLimit));
+          }
+
           const txBlock = this.sendTransaction(data).subscribe(blockOrHash => {
 
             observable.next({ tx: blockOrHash, timer: timer });
@@ -173,10 +227,24 @@ export class Web3Control extends Wallet {
               });
             }
 
+            if (this.env === Config.ENV.console) {
+              this.onConsoleTxShow(blockOrHash, data);
+            }
+
             if (blockOrHash.block) {
               this.storage.onUpdateTx(blockOrHash.block);
               txBlock.unsubscribe();
             }
+          }, err => {
+            const txFree = (+data.gasPrice * +data.gasLimit).toString();
+
+            console.log(
+              `skip tx address: ${data.from} tx fail,`.red,
+              `value: ${this.utils.fromWei(data.value, 'ether')} ETH,`.magenta,
+              `gas price: ${this.utils.fromWei(data.gasPrice, 'ether')} ETH,`.magenta,
+              `balance: ${this.utils.fromWei(balance, 'ether')} ETH,`.magenta,
+              `Cost/Fee: ${this.utils.fromWei(txFree, 'ether')} ETH`.magenta
+              );
           });
         }, timer);
       });
