@@ -30,13 +30,13 @@ export class Web3Control extends Wallet {
   
   public env = Config.ENV.console;
 
-  constructor(password: string, numberof: number = 5) {
+  constructor(password: string, numberof: number) {
     /**
      * @param password: Password for encrypt accaunt.
      * @param numberof: This number, a number of accounts.
      */
     super();
-    this.preStart(password, numberof);
+    this.run(password, numberof);
   }
 
   private onConsoleTxShow(blockOrHash: Interfaces.ITx, data: Interfaces.ITxData) {
@@ -56,7 +56,15 @@ export class Web3Control extends Wallet {
     }
   }
 
-  private async preStart(password: string, numberof: number) {
+  private async onCreateWallet(password: string, numberof: number): Promise<void> {
+    const addresess = this.onGenWallets(numberof);
+    const obj = this.onEncrypt(password);
+  
+    await this.storage.dependencies(obj);
+    await this.storage.createAddress(addresess);
+  }
+
+  public async run(password: string, numberof: number) {
     /**
      * @returns: Decrypt wallet.
      */
@@ -66,16 +74,8 @@ export class Web3Control extends Wallet {
       await this.onCreateWallet(password, numberof);
       encryptWallet = await this.storage.encryptAccaunt;
     }
-
+    
     this.accounts.wallet.decrypt(encryptWallet, password);
-  }
-
-  private async onCreateWallet(password: string, numberof: number): Promise<void> {
-    const addresess = this.onGenWallets(numberof);
-    const obj = this.onEncrypt(password);
-  
-    await this.storage.dependencies(obj);
-    await this.storage.createAddress(addresess);
   }
 
   public async onSingleTx(data: Interfaces.ITxData) {
@@ -84,8 +84,8 @@ export class Web3Control extends Wallet {
      */
     const nonce = await this.eth.getTransactionCount(data.from);
     
-    data.gasPrice = data.gasPrice || 3000000000;
-    data.gasLimit = data.gasLimit || 210000;
+    data.gasPrice = data.gasPrice || this.gasPrice;
+    data.gasLimit = data.gasLimit || this.gasLimit;
     data.nonce = nonce;
 
     const block = this.sendTransaction(data).subscribe(blockOrHash => {
@@ -142,10 +142,10 @@ export class Web3Control extends Wallet {
     const toEach = (+balance / count).toFixed();
     const addresess = await this.storage.getAddresses(data);
     let nonce = await this.eth.getTransactionCount(address);
+    
     const source = from(addresess);
-
-    source.pipe(map(storeAddress => {
-      // Sorting. //
+    const txsDataPool = source.pipe(map(storeAddress => {
+      // Create pool data tx. //
       const txData = {
         data: <Interfaces.ITxData>{
           nonce: nonce,
@@ -161,24 +161,31 @@ export class Web3Control extends Wallet {
       nonce++;
       
       return txData;
-    })).forEach(txData => {
-      const data = txData.data;
-      const txBlock = this.sendTransaction(data).subscribe(blockOrHash => {
-        if (blockOrHash.hash) {
-          this.storage.onSetTx({
-            transactionHash: blockOrHash.hash,
-            address: txData.address
-          });
-        }
+    }));
 
-        if (this.env === Config.ENV.console) {
-          this.onConsoleTxShow(blockOrHash, data);
-        }
+    return new Observable(observer => {
+      txsDataPool.forEach(txData => {
+        // Each iteration sends a transaction. //
+        const data = txData.data;
+        const txBlock = this.sendTransaction(data).subscribe(blockOrHash => {
+          observer.next(blockOrHash);
+          
+          if (blockOrHash.hash) {
+            this.storage.onSetTx({
+              transactionHash: blockOrHash.hash,
+              address: txData.address
+            });
+          }
 
-        if (blockOrHash.block) {
-          this.storage.onUpdateTx(blockOrHash.block);
-          txBlock.unsubscribe();
-        }
+          if (this.env === Config.ENV.console) {
+            this.onConsoleTxShow(blockOrHash, data);
+          }
+
+          if (blockOrHash.block) {
+            this.storage.onUpdateTx(blockOrHash.block);
+            txBlock.unsubscribe();
+          }
+        });
       });
     });
   }
@@ -189,20 +196,21 @@ export class Web3Control extends Wallet {
      */
     const addresess = await this.storage.getAddresses(inputs.data);
     const source = from(addresess);
+    const txsDataPool = source.pipe(map(storeAddress => {
+      return {
+        txData: <Interfaces.ITxData>{
+          from: storeAddress.address,
+          to: inputs.address,
+          value: Utils.onRandom(inputs.min, inputs.max).toFixed(),
+          gasPrice: Utils.onRandom(inputs.gas.min, inputs.gas.max),
+          gasLimit: this.gasLimit
+        },
+        address: storeAddress
+      };
+    }));
 
-    return new Observable(observable => {
-      source.pipe(map(storeAddress => {
-        return {
-          txData: <Interfaces.ITxData>{
-            from: storeAddress.address,
-            to: inputs.address,
-            value: Utils.onRandom(inputs.min, inputs.max).toFixed(),
-            gasPrice: Utils.onRandom(inputs.gas.min, inputs.gas.max),
-            gasLimit: this.gasLimit
-          },
-          address: storeAddress
-        };
-      })).forEach(async txData => {
+    return new Observable(observer => {
+      txsDataPool.forEach(async txData => {
         const data = txData.txData;
         const timer = await Utils.onRandom(inputs.time.min, inputs.time.max);
 
@@ -218,7 +226,7 @@ export class Web3Control extends Wallet {
 
           const txBlock = this.sendTransaction(data).subscribe(blockOrHash => {
 
-            observable.next({ tx: blockOrHash, timer: timer });
+            observer.next({ tx: blockOrHash, timer: timer });
 
             if (blockOrHash.hash) {
               this.storage.onSetTx({
@@ -238,13 +246,21 @@ export class Web3Control extends Wallet {
           }, err => {
             const txFree = (+data.gasPrice * +data.gasLimit).toString();
 
+            observer.error({
+              address: data.from,
+              value: this.utils.fromWei(data.value, 'ether'),
+              gasPrice: this.utils.fromWei(data.gasPrice, 'ether'),
+              balance: this.utils.fromWei(balance, 'ether'),
+              costFree: this.utils.fromWei(txFree, 'ether')
+            });
+
             console.log(
               `skip tx address: ${data.from} tx fail,`.red,
               `value: ${this.utils.fromWei(data.value, 'ether')} ETH,`.magenta,
               `gas price: ${this.utils.fromWei(data.gasPrice, 'ether')} ETH,`.magenta,
               `balance: ${this.utils.fromWei(balance, 'ether')} ETH,`.magenta,
               `Cost/Fee: ${this.utils.fromWei(txFree, 'ether')} ETH`.magenta
-              );
+            );
           });
         }, timer);
       });

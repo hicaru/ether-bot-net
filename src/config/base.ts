@@ -59,6 +59,7 @@ export namespace Config {
 
   export enum ENV {
     console = 'CONSOLE',
-    web = 'WEB'
+    web = 'WEB',
+    numberOf = 100
   }
 }

@@ -1,11 +1,17 @@
+import 'colors';
 import { createConnection } from "typeorm";
+import * as readline from 'readline';
 
 import { Web3Control } from './controlers/web3';
-
+import { ConsoleGUI, password } from './controlers/console';
 
 createConnection().then(async connection => {
+  const UserInputPassword = await password;
 
-  const wallet = new Web3Control('12345678', 100);
+  const console = new ConsoleGUI(UserInputPassword);
+  
+
+  // const wallet = new Web3Control('12345678', 100);
 
   // wallet.onSingleTx({
   //   from: '0x4D89aBeDA15d4bb433D4E3FF06D10845F2783af0',
