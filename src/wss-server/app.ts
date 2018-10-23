@@ -74,7 +74,7 @@ export class WsServer {
               }));
             }, err => {
               event.ws.send(JSON.stringify({
-                error: err.message
+                error: err
               }));
             });
           } catch (err) {

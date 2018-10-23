@@ -26,7 +26,7 @@ export class Web3Control extends Wallet {
   private storage = new Storage();
   
   public gasPrice = 3000000000;
-  public gasLimit = 210000;
+  public gasLimit = 21000;
   
   public env = Config.ENV.console;
 
@@ -83,10 +83,16 @@ export class Web3Control extends Wallet {
      * @param data: Transaction data object.
      */
     const nonce = await this.eth.getTransactionCount(data.from);
-    
+    const balance = await this.onSingleBalance(data.from);
     data.gasPrice = data.gasPrice || this.gasPrice;
     data.gasLimit = data.gasLimit || this.gasLimit;
     data.nonce = nonce;
+
+    if (+balance <= +data.value) {
+      // If random value > balance this address. //
+      // gasPrice * gasLimit = Actual Tx Cost/Fee. //
+      data.value = (+balance - (+data.gasPrice * +data.gasLimit));
+    }
 
     return this.sendTransaction(data);
   }
@@ -242,7 +248,7 @@ export class Web3Control extends Wallet {
           }, err => {
             const txFree = (+data.gasPrice * +data.gasLimit).toString();
 
-            observer.error({
+            observer.next({
               address: data.from,
               value: this.utils.fromWei(data.value, 'ether'),
               gasPrice: this.utils.fromWei(data.gasPrice, 'ether'),
