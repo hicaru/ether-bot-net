@@ -1,4 +1,4 @@
-# Awesome Project Build with TypeORM
+# BOT in developing.
         
 Steps to run this project:
 
