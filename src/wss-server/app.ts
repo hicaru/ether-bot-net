@@ -6,20 +6,10 @@ import { Observable } from 'rxjs';
 
 import { Config, Interfaces } from '../config/base';
 import { Web3Control } from '../controlers/web3';
+import { ISoketEvent, WsConfig } from './config';
 
 const app = express();
 const server = http.createServer(app);
-
-export interface ISoketEvent {
-  type: string | number;
-  body?: any;
-  ws?: WebSocket;
-}
-
-enum WsConfig {
-  MESSAGE = 'message',
-  CONNECTION = 'connection'
-}
 
 export class WsServer {
 
