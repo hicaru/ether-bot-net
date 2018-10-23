@@ -20,7 +20,7 @@ export class Wallet {
   private _web3 = new Web3(Config.Cnf.HttpProvider);
   protected eth = this._web3.eth;
   protected accounts = this._web3.eth.accounts;
-  protected utils = this._web3.utils;
+  public utils = this._web3.utils;
   protected addresses = this._web3.eth.getAccounts;
 
   constructor() { }

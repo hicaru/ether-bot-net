@@ -47,8 +47,9 @@ export namespace Interfaces {
     data: IPaginate;
     min: number;
     max: number;
-    gas: { min: number, max: number },
-    time: { min: number, max: number }
+    contractCode?: string;
+    gas: { min: number, max: number };
+    time: { min: number, max: number };
   }
 }
 
@@ -61,5 +62,16 @@ export namespace Config {
     console = 'CONSOLE',
     web = 'WEB',
     numberOf = 100
+  }
+
+  export enum WSEvent {
+    SEND_A_TRANSACTION = 1,
+    SEND_POOL_TRANSACTION = 2,
+    SYNCHRONIZATION = 3,
+    BALANCE = 4,
+    BALANCE_ALL = 5,
+    ADDRESSES_SHOW = 6,
+    SET_GAS_PRICE = 7,
+    SET_GAS_LIMIT = 8
   }
 }

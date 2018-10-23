@@ -13,7 +13,9 @@ enum EventsId {
   BALANCE = 4,
   BALANCE_ALL = 5,
   ADDRESSES_SHOW = 6,
-  EXIT = 7,
+  EXIT = 9,
+  SET_GAS_PRICE = 7,
+  SET_GAS_LIMIT = 8,
   DEFAULT = 8
 }
 
@@ -27,6 +29,7 @@ export class ConsoleGUI {
 
   private wallet: Web3Control;
   private onInputEvents: Observable<IEvent> = new Observable(dispatch => {
+
     const rl = readline.createInterface({
       input: process.stdin,
       output: process.stdout
@@ -40,6 +43,13 @@ export class ConsoleGUI {
         case EventsId.SEND_A_TRANSACTION:
           dispatch.next({
             type: EventsId.SEND_A_TRANSACTION,
+            msg: 'Enter the address from which you are sending'.green
+          });
+          break;
+        
+        case EventsId.SET_GAS_PRICE:
+          dispatch.next({
+            type: EventsId.SET_GAS_PRICE,
             msg: 'Enter the address from which you are sending'.green
           });
           break;
@@ -85,7 +95,9 @@ export class ConsoleGUI {
     console.log('\t[4] Get address balance.'.bgBlack.cyan);
     console.log('\t[5] Get wallet balance.'.bgBlack.cyan);
     console.log('\t[6] Show my address.'.bgBlack.cyan);
-    console.log('\t[7] Exit.'.bgBlack.red);
+    console.log(`\t[7] gas price ${this.wallet.gasPrice / 10e8}gwei`.bgBlack.cyan);
+    console.log(`\t[8] gas limit ${this.wallet.gasLimit}`.bgBlack.cyan);
+    console.log('\t[9] Exit.'.bgBlack.red);
   }
 
 }

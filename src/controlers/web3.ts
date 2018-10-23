@@ -78,7 +78,7 @@ export class Web3Control extends Wallet {
     this.accounts.wallet.decrypt(encryptWallet, password);
   }
 
-  public async onSingleTx(data: Interfaces.ITxData) {
+  public async onSingleTx(data: Interfaces.ITxData): Promise<Observable<Interfaces.ITx>> {
     /**
      * @param data: Transaction data object.
      */
@@ -88,14 +88,7 @@ export class Web3Control extends Wallet {
     data.gasLimit = data.gasLimit || this.gasLimit;
     data.nonce = nonce;
 
-    const block = this.sendTransaction(data).subscribe(blockOrHash => {
-      console.log(blockOrHash);
-    }, err => {
-      console.log(err); 
-    }, () => {
-      console.log('done');
-      block.unsubscribe();
-    });
+    return this.sendTransaction(data);
   }
 
   public async onSingleBalance(address: string): Promise<string | number> {
@@ -132,7 +125,7 @@ export class Web3Control extends Wallet {
     return balance;
   }
 
-  public async onAccountSync(address: string, data: Interfaces.IPaginate) {
+  public async onAccountSync(address: string, data: Interfaces.IPaginate): Promise<Observable<Interfaces.ITx>> {
     /**
      * @param address: Ether address in hex.
      * @param data: Type orm data limit and ofset.
@@ -185,6 +178,8 @@ export class Web3Control extends Wallet {
             this.storage.onUpdateTx(blockOrHash.block);
             txBlock.unsubscribe();
           }
+        }, err => {
+          observer.error(err);
         });
       });
     });
@@ -203,7 +198,8 @@ export class Web3Control extends Wallet {
           to: inputs.address,
           value: Utils.onRandom(inputs.min, inputs.max).toFixed(),
           gasPrice: Utils.onRandom(inputs.gas.min, inputs.gas.max),
-          gasLimit: this.gasLimit
+          gasLimit: this.gasLimit,
+          data: inputs.contractCode
         },
         address: storeAddress
       };

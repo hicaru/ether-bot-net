@@ -1,14 +1,16 @@
-import 'colors';
-import { createConnection } from "typeorm";
-import * as readline from 'readline';
+import { createConnection } from 'typeorm';
 
 import { Web3Control } from './controlers/web3';
 import { ConsoleGUI, password } from './controlers/console';
+import { WsServer } from './wss-server/app';
 
 createConnection().then(async connection => {
-  const UserInputPassword = await password;
 
-  const console = new ConsoleGUI(UserInputPassword);
+  // const UserInputPassword = await password;
+
+  const ws = new WsServer(8999, '12345678');
+
+  // const console = new ConsoleGUI(UserInputPassword);
   
 
   // const wallet = new Web3Control('12345678', 100);
