@@ -21,6 +21,7 @@ export class Web3Control extends Wallet {
    * @method onAllBalance: Get all accaunts balance.
    * @method onAccountSync: Account balance synchronization.
    * @method onPoolMapTx: Create pool transactions with interval.
+   * @method onWalletExport: Export all accauntes {address, privateKey}.
    */
 
   private storage = new Storage();
@@ -267,6 +268,25 @@ export class Web3Control extends Wallet {
         }, timer);
       });
     });    
+  }
+
+  public onWalletExport(): Interfaces.IexportAccaunt[] {
+    const keys = Object.keys(this.accounts.wallet);
+    const elements = [];
+
+    for (let key = 0; key < keys.length; key++) {
+      let accaunt = this.accounts.wallet[key.toString()];
+      try {
+        elements.push({
+          address: accaunt['address'],
+          privateKey: accaunt['privateKey']
+        });
+      } catch (err) {
+        break;
+      }
+    }
+
+    return elements;
   }
 
 }

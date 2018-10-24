@@ -51,6 +51,11 @@ export namespace Interfaces {
     gas: { min: number, max: number };
     time: { min: number, max: number };
   }
+
+  export interface IexportAccaunt {
+    address: string;
+    privateKey: string;
+  }
 }
 
 export namespace Config {
@@ -72,6 +77,7 @@ export namespace Config {
     BALANCE_ALL = 5,
     ADDRESSES_SHOW = 6,
     SET_GAS_PRICE = 7,
-    SET_GAS_LIMIT = 8
+    SET_GAS_LIMIT = 8,
+    WALLET_INFO = 9
   }
 }

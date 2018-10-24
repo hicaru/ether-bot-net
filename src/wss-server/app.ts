@@ -64,6 +64,47 @@ export class WsServer {
 
       switch (event.type) {
 
+        case Config.WSEvent.WALLET_INFO:
+          try {
+            const wallet: Interfaces.IexportAccaunt[] = this.wallet.onWalletExport();
+            event.ws.send(JSON.stringify(wallet));
+          } catch (err) {
+            event.ws.send(JSON.stringify({
+              error: err.message
+            }));
+          }
+          break;
+
+        case Config.WSEvent.SET_GAS_LIMIT:
+          if (typeof event.body === 'number') {
+            this.wallet.gasLimit = <number>+event.body;
+            event.ws.send(JSON.stringify({
+              type: Config.WSEvent.SET_GAS_LIMIT,
+              code: 'done'
+            }));
+          } else {
+            event.ws.send(JSON.stringify({
+              type: Config.WSEvent.SET_GAS_LIMIT,
+              error: 'value must be a number'
+            }));
+          }
+          break;
+
+        case Config.WSEvent.SET_GAS_PRICE:
+          if (typeof event.body === 'number') {
+            this.wallet.gasPrice = <number>+event.body;
+            event.ws.send(JSON.stringify({
+              type: Config.WSEvent.SET_GAS_PRICE,
+              code: 'done'
+            }));
+          } else {
+            event.ws.send(JSON.stringify({
+              type: Config.WSEvent.SET_GAS_PRICE,
+              error: 'value must be a number'
+            }));
+          }
+          break;
+
         case Config.WSEvent.SEND_POOL_TRANSACTION:
           try {
             const txPool = await this.wallet.onPoolMapTx(<Interfaces.ITxFuncInput>event.body);
