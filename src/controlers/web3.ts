@@ -24,11 +24,9 @@ export class Web3Control extends Wallet {
    * @method onWalletExport: Export all accauntes {address, privateKey}.
    */
 
-  private storage = new Storage();
-  
+  public storage = new Storage();
   public gasPrice = 3000000000;
   public gasLimit = 21000;
-  
   public env = Config.ENV.console;
 
   constructor(password: string, numberof: number) {

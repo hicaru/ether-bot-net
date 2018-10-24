@@ -70,6 +70,7 @@ export namespace Config {
   }
 
   export enum WSEvent {
+    RUN = 0,
     SEND_A_TRANSACTION = 1,
     SEND_POOL_TRANSACTION = 2,
     SYNCHRONIZATION = 3,

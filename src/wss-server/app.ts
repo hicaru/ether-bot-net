@@ -37,6 +37,17 @@ export class WsServer {
         });
 
       });
+
+      ws.send(JSON.stringify({
+        type: Config.WSEvent.RUN,
+        body: {
+          gasPrice: this.wallet.gasPrice,
+          gasLimit: this.wallet.gasLimit,
+          addresses: this.wallet.onWalletExport()
+        }
+      }));
+
+      console.log('soket: client'.green);
     });
   });
 
