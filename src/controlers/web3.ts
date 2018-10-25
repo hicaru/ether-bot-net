@@ -1,5 +1,5 @@
 import 'colors';
-import { from, Observable } from 'rxjs';
+import { from, Observable, of } from 'rxjs';
 import { map } from 'rxjs/operators';
 
 import { Wallet } from '../ether/wallet';
@@ -103,7 +103,7 @@ export class Web3Control extends Wallet {
     return await this.eth.getBalance(address);
   }
 
-  public async onAllBalance(data: Interfaces.IPaginate) {
+  public async onAllBalance(data: Interfaces.IPaginate): Promise<Observable<Interfaces.IRresultCnr>> {
     /**
      * @param data: Type orm object, limit or ofset.
      */
@@ -116,18 +116,26 @@ export class Web3Control extends Wallet {
       }
     });
 
-    if (this.env === Config.ENV.console) {
-      balance.forEach(async el => {
-        const balance = await el;
-  
-        console.log(
-          balance.address.green,
-          this.utils.fromWei(balance.balance, 'ether').cyan
-        );
-      });
-    }
+    return new Observable(result => {
+      const elements: Interfaces.IBalance[] = [];
 
-    return balance;
+      balance.forEach(async (el, index) => {
+        const object =  await el;
+        elements.push(<Interfaces.IBalance>{
+          address: object.address,
+          balance: +this.utils.fromWei(object.balance, 'ether'),
+          unit256: +object.balance
+        });
+
+        if (balance.length === elements.length) {
+          result.next({
+            result: elements,
+            json: JSON.stringify(elements)
+          });
+          result.complete();
+        }
+      });
+    });
   }
 
   public async onAccountSync(address: string, data: Interfaces.IPaginate): Promise<Observable<Interfaces.ITx>> {
@@ -190,7 +198,7 @@ export class Web3Control extends Wallet {
     });
   }
 
-  public async onPoolMapTx(inputs: Interfaces.ITxFuncInput): Promise<Observable<any>> {
+  public async onPoolMapTx(inputs: Interfaces.ITxFuncInput): Promise<Observable<Interfaces.ITxPool | any>> {
     /**
      * @param inputs: Inputs object for Sendig transactionCount.
      */

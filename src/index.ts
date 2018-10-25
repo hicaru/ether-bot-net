@@ -2,7 +2,7 @@ import { createConnection } from 'typeorm';
 
 import { Web3Control } from './controlers/web3';
 import { ConsoleGUI, password } from './controlers/console';
-import { WsServer } from './wss-server/app';
+import { WsServer } from './ws-server/app';
 
 createConnection().then(async connection => {
 
