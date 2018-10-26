@@ -1,5 +1,6 @@
 import 'colors';
 import * as express from 'express';
+import { Response, Request, NextFunction } from 'express';
 import * as http from 'http';
 import * as WebSocket from 'ws';
 import * as path from 'path';
@@ -12,6 +13,9 @@ import { wsforeman } from './ws';
 const app = express();
 
 app.use(express.static(path.join(__dirname, 'public')));
+app.use('/*', (req: Request, res: Response, next: NextFunction) => {
+  res.sendFile(path.join(__dirname, 'public/index.html'));
+});
 
 const server = http.createServer(app);
 
