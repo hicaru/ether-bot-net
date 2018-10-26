@@ -103,7 +103,7 @@ export class Web3Control extends Wallet {
     return await this.eth.getBalance(address);
   }
 
-  public async onAllBalance(data: Interfaces.IPaginate): Promise<Observable<Interfaces.IRresultCnr>> {
+  public async onAllBalance(data: Interfaces.IPaginate): Promise<Observable<Interfaces.IBalance[]>> {
     /**
      * @param data: Type orm object, limit or ofset.
      */
@@ -121,33 +121,37 @@ export class Web3Control extends Wallet {
 
       balance.forEach(async (el, index) => {
         const object =  await el;
+
+        if (object.balance > 1 * 10e8 || object.balance == 0) {
+          object.balance = `${this.utils.fromWei(object.balance, 'ether')}ETH`;
+        } else {
+          object.balance = `${this.utils.fromWei(object.balance, 'wei')}Wei`;
+        }
+
         elements.push(<Interfaces.IBalance>{
           address: object.address,
-          balance: +this.utils.fromWei(object.balance, 'ether'),
+          balance: object.balance,
           unit256: +object.balance
         });
 
         if (balance.length === elements.length) {
-          result.next({
-            result: elements,
-            json: JSON.stringify(elements)
-          });
+          result.next(elements);
           result.complete();
         }
       });
     });
   }
 
-  public async onAccountSync(address: string, data: Interfaces.IPaginate): Promise<Observable<Interfaces.ITx>> {
+  public async onAccountSync(data: Interfaces.ISyncAccaunt): Promise<Observable<Interfaces.ITx | any>> {
     /**
      * @param address: Ether address in hex.
      * @param data: Type orm data limit and ofset.
      */
     const count = await this.storage.count();
-    const balance = await this.onSingleBalance(address);
+    const balance = await this.onSingleBalance(data.address);
     const toEach = (+balance / count).toFixed();
-    const addresess = await this.storage.getAddresses(data);
-    let nonce = await this.eth.getTransactionCount(address);
+    const addresess = await this.storage.getAddresses(data.data);
+    let nonce = await this.eth.getTransactionCount(data.address);
     
     const source = from(addresess);
     const txsDataPool = source.pipe(map(storeAddress => {
@@ -155,11 +159,11 @@ export class Web3Control extends Wallet {
       const txData = {
         data: <Interfaces.ITxData>{
           nonce: nonce,
-          from: address,
+          from: data.address,
           to: storeAddress.address,
           value: toEach,
-          gasPrice: this.gasPrice,
-          gasLimit: this.gasLimit
+          gasPrice: data.gasPrice || this.gasPrice,
+          gasLimit: data.gasLimit || this.gasLimit
         },
         address: storeAddress
       }
@@ -192,7 +196,7 @@ export class Web3Control extends Wallet {
             txBlock.unsubscribe();
           }
         }, err => {
-          observer.error(err);
+          observer.next({ error: err });
         });
       });
     });
@@ -234,8 +238,9 @@ export class Web3Control extends Wallet {
           }
 
           const txBlock = this.sendTransaction(data).subscribe(blockOrHash => {
+            blockOrHash['timer'] = timer;
 
-            observer.next({ tx: blockOrHash, timer: timer });
+            observer.next(blockOrHash);
 
             if (blockOrHash.hash) {
               this.storage.onSetTx({
@@ -254,14 +259,7 @@ export class Web3Control extends Wallet {
             }
           }, err => {
             const txFree = (+data.gasPrice * +data.gasLimit).toString();
-
-            observer.next({
-              address: data.from,
-              value: this.utils.fromWei(data.value, 'ether'),
-              gasPrice: this.utils.fromWei(data.gasPrice, 'ether'),
-              balance: this.utils.fromWei(balance, 'ether'),
-              costFree: this.utils.fromWei(txFree, 'ether')
-            });
+            observer.next({ error: err });
 
             console.log(
               `skip tx address: ${data.from} tx fail,`.red,

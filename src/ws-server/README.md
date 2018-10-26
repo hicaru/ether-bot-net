@@ -62,7 +62,7 @@ response
 request
 ```json
 {
-    "type": 2,
+    "type": "SENDPOOLTRANSACTION",
     "body": {
         "address":"0xA98060409a31FdF92754ADD44645d273578185C7", // address to.
         "data":{ // number of addresses of pool tx.
@@ -85,7 +85,7 @@ request
 response
 ```json
 {
-  "type": 2,
+  "type": "ONHASH",
   "body": {
     "tx": {
       "hash": "0x9e6c021ade8805002bfb8ce8036d4933166262f14ba0a6439c49be3da00639d3"
@@ -94,7 +94,7 @@ response
   }
 }
 {
-  "type": 2,
+  "type": "ONBLOCK",
   "body": {
     "tx": {
       "block": {
@@ -123,15 +123,11 @@ response
 
 request
 ```json
-{
-    "type": 3,
-    "body": {
-        "address": "0xA98060409a31FdF92754ADD44645d273578185C7",
-        "data":{
-            "take":100,
-            "skip":0
-        },
-    }
+{ 
+  "type": "SYNCHRONIZATION", 
+  "body": {
+    "address": "0xA98060409a31FdF92754ADD44645d273578185C7" 
+  }
 }
 ```
 response

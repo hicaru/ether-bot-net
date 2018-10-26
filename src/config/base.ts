@@ -62,15 +62,17 @@ export namespace Interfaces {
     timer: number;
   }
 
-  export interface IRresultCnr {
-    result: any;
-    json?: string;
-  }
-
   export interface IBalance {
     balance: number | string;
     address: string;
     unit256?: number | string;
+  }
+
+  export interface ISyncAccaunt {
+    address: string;
+    data?: IPaginate;
+    gasPrice?: number | string;
+    gasLimit?: number | string;
   }
 }
 
@@ -103,6 +105,8 @@ export namespace Config {
     SEND_A_TRANSACTION = 'SENDATRANSACTION',
     SEND_POOL_TRANSACTION = 'SENDPOOLTRANSACTION',
     ON_HASH = 'ONHASH',
-    ON_BLOCK = 'ONBLOCK'
+    ON_BLOCK = 'ONBLOCK',
+
+    ERROR = 'ERROR' 
   }
 }
