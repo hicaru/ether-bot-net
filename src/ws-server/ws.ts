@@ -13,6 +13,7 @@ export interface IWs {
 export const wsforeman = async (data: IWs): Promise<void> => {
   
   function errorHandler(error: Error | string): void {
+    console.log(error);
     let serialization: string;
 
     if (error && error['message']) {
@@ -66,7 +67,7 @@ export const wsforeman = async (data: IWs): Promise<void> => {
 
     case Config.WSEvent.SET_GAS_LIMIT:
       if (typeof data.body != 'number') break;
-      data.wallet.gasLimit = data.body === 1 ? data.wallet.gasLimit : data.body;
+      if (data.body != 1) data.wallet.gasLimit = data.body;
       data.ws.send(JSON.stringify({
         type: Config.WSEvent.GET_GAS_LIMIT,
         body: data.wallet.gasLimit
@@ -75,7 +76,7 @@ export const wsforeman = async (data: IWs): Promise<void> => {
 
     case Config.WSEvent.SET_GAS_PRICE:
       if (typeof data.body != 'number') break;
-      data.wallet.gasPrice =data.body === 1 ? data.wallet.gasPrice : data.body;
+      if (data.body != 1) data.wallet.gasPrice = data.body;   
       data.ws.send(JSON.stringify({
         type: Config.WSEvent.GET_GAS_PRICE,
         body: data.wallet.gasPrice

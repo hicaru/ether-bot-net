@@ -26,7 +26,7 @@ export class Web3Control extends Wallet {
 
   public storage = new Storage();
   public gasPrice = 3000000000;
-  public gasLimit = 21000;
+  public gasLimit: number | string = 21000;
   public env = Config.ENV.console;
 
   constructor(password: string, numberof: number) {
@@ -36,23 +36,6 @@ export class Web3Control extends Wallet {
      */
     super();
     this.run(password, numberof);
-  }
-
-  private onConsoleTxShow(blockOrHash: Interfaces.ITx, data: Interfaces.ITxData) {
-    if (blockOrHash.hash) {
-      console.log(
-        `tx hash: ${blockOrHash.hash},`.green,
-        `to: ${data.to},`.blue,
-        `gas price: ${this.utils.fromWei(data.gasPrice, 'gwei')} gwei`.red
-      );
-    } else if (blockOrHash.block) {
-      console.log(
-        `block number: ${blockOrHash.block.blockNumber},`.blue,
-        'status: ' + blockOrHash.block.status ? 'true'.green : 'false'.red,
-        `address: ${data.from}`.cyan,
-        `tx hash: ${blockOrHash.block.transactionHash}`.white
-      );
-    }
   }
 
   private async onCreateWallet(password: string, numberof: number): Promise<void> {
@@ -68,6 +51,7 @@ export class Web3Control extends Wallet {
      * @returns: Decrypt wallet.
      */
     let encryptWallet = await this.storage.encryptAccaunt;
+    const gas = await this.onGas();
 
     if (encryptWallet.length <= 0) {
       await this.onCreateWallet(password, numberof);
@@ -75,6 +59,17 @@ export class Web3Control extends Wallet {
     }
     
     this.accounts.wallet.decrypt(encryptWallet, password);
+
+    this.gasLimit = gas.gasLimit;
+  }
+
+  public async onGas(): Promise<{gasUsed: number | string, gasLimit: number | string}> {
+    const blockNumber = await this.eth.getBlockNumber();
+    const block = await this.eth.getBlock(blockNumber);
+    const gasUsed = block['gasUsed'];
+    const gasLimit = this.gasLimit && this.gasLimit >= 21000 ? this.gasLimit : block['gasLimit'];
+
+    return { gasUsed: gasUsed, gasLimit: gasLimit };
   }
 
   public async onSingleTx(data: Interfaces.ITxData): Promise<Observable<Interfaces.ITx>> {
@@ -82,15 +77,16 @@ export class Web3Control extends Wallet {
      * @param data: Transaction data object.
      */
     const nonce = await this.eth.getTransactionCount(data.from);
+    const gas = await this.onGas();
     const balance = await this.onSingleBalance(data.from);
-    data.gasPrice = data.gasPrice || this.gasPrice;
-    data.gasLimit = data.gasLimit || this.gasLimit;
-    data.nonce = nonce;
+
+    data.gasPrice = this.utils.toHex(data.gasPrice || this.gasPrice);
+    data.gasLimit = this.utils.toHex(data.gasLimit || this.gasLimit || gas.gasLimit);
+    data.gas = this.utils.toHex(gas.gasUsed);
+    data.nonce = this.utils.toHex(nonce);
 
     if (+balance <= +data.value) {
-      // If random value > balance this address. //
-      // gasPrice * gasLimit = Actual Tx Cost/Fee. //
-      data.value = (+balance - (+data.gasPrice * +data.gasLimit));
+      data.value = this.utils.toHex(+balance - (+data.gasPrice * +data.gas));
     }
 
     return this.sendTransaction(data);
@@ -149,8 +145,9 @@ export class Web3Control extends Wallet {
      */
     const count = await this.storage.count();
     const balance = await this.onSingleBalance(data.address);
-    const toEach = (+balance / count).toFixed();
+    const toEach = this.utils.toHex((+balance / count).toFixed());
     const addresess = await this.storage.getAddresses(data.data);
+    const gas = await this.onGas();
     let nonce = await this.eth.getTransactionCount(data.address);
     
     const source = from(addresess);
@@ -163,7 +160,8 @@ export class Web3Control extends Wallet {
           to: storeAddress.address,
           value: toEach,
           gasPrice: data.gasPrice || this.gasPrice,
-          gasLimit: data.gasLimit || this.gasLimit
+          gasLimit: gas.gasLimit,
+          gas: gas.gasUsed
         },
         address: storeAddress
       }
@@ -187,10 +185,6 @@ export class Web3Control extends Wallet {
             });
           }
 
-          if (this.env === Config.ENV.console) {
-            this.onConsoleTxShow(blockOrHash, data);
-          }
-
           if (blockOrHash.block) {
             this.storage.onUpdateTx(blockOrHash.block);
             txBlock.unsubscribe();
@@ -207,15 +201,17 @@ export class Web3Control extends Wallet {
      * @param inputs: Inputs object for Sendig transactionCount.
      */
     const addresess = await this.storage.getAddresses(inputs.data);
+    const gas = await this.onGas();
     const source = from(addresess);
     const txsDataPool = source.pipe(map(storeAddress => {
       return {
         txData: <Interfaces.ITxData>{
           from: storeAddress.address,
           to: inputs.address,
-          value: Utils.onRandom(inputs.min, inputs.max).toFixed(),
-          gasPrice: Utils.onRandom(inputs.gas.min, inputs.gas.max),
-          gasLimit: this.gasLimit,
+          value: this.utils.toHex(Utils.onRandom(inputs.min, inputs.max).toFixed()),
+          gasPrice: this.utils.toHex(Utils.onRandom(inputs.gas.min, inputs.gas.max).toFixed()),
+          gasLimit: this.utils.toHex(this.gasLimit || gas.gasLimit),
+          gas: this.utils.toHex(gas.gasUsed),
           data: inputs.contractCode
         },
         address: storeAddress
@@ -234,11 +230,14 @@ export class Web3Control extends Wallet {
           if (+balance <= +data.value) {
             // If random value > balance this address. //
             // gasPrice * gasLimit = Actual Tx Cost/Fee. //
-            data.value = (+balance - (+data.gasPrice * +data.gasLimit));
+            data.value = this.utils.toHex(+balance - (+data.gasPrice * +data.gasLimit));
+          }
+
+          if (+data.value <= 0) {
+            return observer.next({ error: new Error('On balance less than gas exposed!') });
           }
 
           const txBlock = this.sendTransaction(data).subscribe(blockOrHash => {
-            blockOrHash['timer'] = timer;
 
             observer.next(blockOrHash);
 
@@ -247,10 +246,6 @@ export class Web3Control extends Wallet {
                 transactionHash: blockOrHash.hash,
                 address: txData.address
               });
-            }
-
-            if (this.env === Config.ENV.console) {
-              this.onConsoleTxShow(blockOrHash, data);
             }
 
             if (blockOrHash.block) {

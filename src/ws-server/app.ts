@@ -7,7 +7,7 @@ import * as path from 'path';
 
 import { Config, Interfaces } from '../config/base';
 import { Web3Control } from '../controlers/web3';
-import { ISoketEvent, WsConfig } from './config';
+import { WsConfig } from './config';
 import { wsforeman } from './ws';
 
 const app = express();
@@ -43,7 +43,7 @@ export class WsServer {
   }
 
   private soket(): void {
-    this.ws.on(WsConfig.CONNECTION, (ws: WebSocket) => {
+    this.ws.on(WsConfig.CONNECTION, async (ws: WebSocket) => {
       // Create soket connecting. //
       ws.on(WsConfig.MESSAGE, (message: string) => {
         let emitObjec: object;
@@ -62,12 +62,15 @@ export class WsServer {
         });
   
       });
+
+      const gas = await this.wallet.onGas();
   
       ws.send(JSON.stringify({
         type: Config.WSEvent.RUN,
         body: {
           gasPrice: this.wallet.gasPrice,
-          gasLimit: this.wallet.gasLimit,
+          gasLimit: gas.gasLimit,
+          gasUsed: gas.gasUsed,
           addresses: this.wallet.onWalletExport()
         }
       }));
