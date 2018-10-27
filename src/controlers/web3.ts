@@ -230,7 +230,7 @@ export class Web3Control extends Wallet {
           if (+balance <= +data.value) {
             // If random value > balance this address. //
             // gasPrice * gasLimit = Actual Tx Cost/Fee. //
-            data.value = this.utils.toHex(+balance - (+data.gasPrice * +data.gasLimit));
+            data.value = this.utils.toHex(+balance - (+data.gasPrice * +data.gas));
           }
 
           if (+data.value <= 0) {
