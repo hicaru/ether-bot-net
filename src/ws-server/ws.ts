@@ -13,7 +13,6 @@ export interface IWs {
 export const wsforeman = async (data: IWs): Promise<void> => {
   
   function errorHandler(error: Error | string): void {
-    console.log(error);
     let serialization: string;
 
     if (error && error['message']) {

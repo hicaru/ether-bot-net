@@ -28,7 +28,6 @@ export class WsServer {
 
   constructor(port: number = 8999, password: string) {
     this.wallet = new Web3Control(password, Config.ENV.numberOf);
-    this.wallet.env = Config.ENV.web;
     this.port = port;
     this.ws = new WebSocket.Server({ server });
     this.httpRun();
@@ -62,15 +61,13 @@ export class WsServer {
         });
   
       });
-
-      const gas = await this.wallet.onGas();
   
       ws.send(JSON.stringify({
         type: Config.WSEvent.RUN,
         body: {
           gasPrice: this.wallet.gasPrice,
-          gasLimit: gas.gasLimit,
-          gasUsed: gas.gasUsed,
+          gasLimit: this.wallet.gasLimit,
+          gasUsed: this.wallet.gasUsed,
           addresses: this.wallet.onWalletExport()
         }
       }));

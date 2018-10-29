@@ -24,6 +24,7 @@ export namespace Interfaces {
   export interface ITx {
     hash?: string;
     block?: Tx;
+    error?: string | Error;
   }
 
   export interface ITxData {
@@ -57,11 +58,6 @@ export namespace Interfaces {
     privateKey: string;
   }
 
-  export interface ITxPool {
-    tx: ITx;
-    timer: number;
-  }
-
   export interface IBalance {
     balance: number | string;
     address: string;
@@ -74,6 +70,30 @@ export namespace Interfaces {
     gasPrice?: number | string;
     gasLimit?: number | string;
   }
+
+  export interface IBlock {
+    author: string;
+    difficulty?: string;
+    extraData?: string;
+    gasLimit?: number;
+    gasUsed?: number;
+    hash: string;
+    logsBloom: string;
+    miner: string;
+    number: number;
+    parentHash?: string;
+    receiptsRoot: string;
+    sealFields?: string[];
+    sha3Uncles?: string;
+    signature?: string;
+    size: number;
+    stateRoot: string;
+    step: string;
+    timestamp: number | Date;
+    totalDifficulty?: string;
+    transactions?: string[];
+    transactionsRoot?: string;
+  }
 }
 
 export namespace Config {
@@ -82,7 +102,6 @@ export namespace Config {
   }
 
   export enum ENV {
-    console = 'CONSOLE',
     web = 'WEB',
     numberOf = 100
   }

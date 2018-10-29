@@ -1,11 +1,12 @@
 import 'colors';
-import { from, Observable, of } from 'rxjs';
+import { from, Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 
 import { Wallet } from '../ether/wallet';
 import { Storage } from './storage';
-import { Interfaces, Config } from '../config/base';
+import { Interfaces } from '../config/base';
 import { Utils } from './utils';
+import { Address } from '../entity/address';
 
 
 export class Web3Control extends Wallet {
@@ -13,8 +14,9 @@ export class Web3Control extends Wallet {
    * @param storage: Вatabase instance controller.
    * @param gasPrice: Default gas value.
    * @param gasLimit: Default gas limit value.
+   * @param gasUsed: Gas used from last block.
 
-   * @method preStart: For encrypt or create wallet.
+   * @method run: Run wallet.
    * @method onCreateWallet: Create wallet.
    * @method onSingleTx: Create one transaction.
    * @method onSingleBalance: Get one address balance.
@@ -22,12 +24,15 @@ export class Web3Control extends Wallet {
    * @method onAccountSync: Account balance synchronization.
    * @method onPoolMapTx: Create pool transactions with interval.
    * @method onWalletExport: Export all accauntes {address, privateKey}.
+   * @method onGas: Get gas limit and gasUserd from last block.
+   * @method print: Console write controll.
    */
 
   public storage = new Storage();
-  public gasPrice = 3000000000;
-  public gasLimit: number | string = 21000;
-  public env = Config.ENV.console;
+  public gasPrice: number | string;
+  public gasLimit: number | string;
+  public gasUsed: number | string;
+  public logs: boolean = true;
 
   constructor(password: string, numberof: number) {
     /**
@@ -35,6 +40,7 @@ export class Web3Control extends Wallet {
      * @param numberof: This number, a number of accounts.
      */
     super();
+    this.onGas();
     this.run(password, numberof);
   }
 
@@ -44,6 +50,47 @@ export class Web3Control extends Wallet {
   
     await this.storage.dependencies(obj);
     await this.storage.createAddress(addresess);
+  }
+
+  private print(blockOrHash: Interfaces.ITx, data: Interfaces.ITxData): void {
+    if (!this.logs) return null;
+ 
+    if (blockOrHash.hash) {
+      console.log(
+        `[tx hash]: ${blockOrHash.hash},`.green,
+        `[to]: ${data.to},`.blue,
+        `[gas price]: ${this.utils.fromWei(data.gasPrice, 'gwei')} gwei`.red
+      );
+    } else if (blockOrHash.block) {
+      console.log(
+        `[block number]: ${blockOrHash.block.blockNumber},`.blue,
+        '[status]: ' + blockOrHash.block.status ? 'true'.green : 'false'.red,
+        `[address]: ${data.from}`.cyan,
+        `[tx hash]: ${blockOrHash.block.transactionHash}`.white
+      );
+    }
+
+    if (blockOrHash.error) {
+      const txFree = (+data.gasPrice * +data.gas).toString();
+      console.log(
+        `[skip tx address]: ${data.from} tx fail,`.red,
+        `[value]: ${this.utils.fromWei(data.value, 'ether')} ETH,`.magenta,
+        `[gas price]: ${this.utils.fromWei(data.gasPrice, 'ether')} ETH,`.magenta,
+        `[Cost/Fee]: ${this.utils.fromWei(txFree, 'ether')} ETH`.magenta,
+        blockOrHash.error['message']
+      );
+    }
+  }
+
+  private async onGas(): Promise<{gasUsed: number | string, gasLimit: number | string}> {
+    const blockNumber = await this.eth.getBlockNumber();
+    const block: Interfaces.IBlock = await this.eth.getBlock(blockNumber);
+
+    this.gasLimit = block.gasLimit || 21000;
+    this.gasPrice = 3000000000;
+    this.gasUsed = block.gasUsed || this.gasLimit;
+
+    return { gasUsed: this.gasUsed, gasLimit: this.gasLimit };
   }
 
   public async run(password: string, numberof: number) {
@@ -63,33 +110,67 @@ export class Web3Control extends Wallet {
     this.gasLimit = gas.gasLimit;
   }
 
-  public async onGas(): Promise<{gasUsed: number | string, gasLimit: number | string}> {
-    const blockNumber = await this.eth.getBlockNumber();
-    const block = await this.eth.getBlock(blockNumber);
-    const gasUsed = block['gasUsed'];
-    const gasLimit = this.gasLimit && this.gasLimit >= 21000 ? this.gasLimit : block['gasLimit'];
-
-    return { gasUsed: gasUsed, gasLimit: gasLimit };
-  }
-
   public async onSingleTx(data: Interfaces.ITxData): Promise<Observable<Interfaces.ITx>> {
     /**
      * @param data: Transaction data object.
      */
-    const nonce = await this.eth.getTransactionCount(data.from);
-    const gas = await this.onGas();
+    const address = await this.storage.onAddress(data.from);
     const balance = await this.onSingleBalance(data.from);
+    const errorMsg: string[] = [
+      'PrivateKey is none.',
+      'On balance less than gas exposed!'
+    ];
 
-    data.gasPrice = this.utils.toHex(data.gasPrice || this.gasPrice);
-    data.gasLimit = this.utils.toHex(data.gasLimit || this.gasLimit || gas.gasLimit);
-    data.gas = this.utils.toHex(gas.gasUsed);
-    data.nonce = this.utils.toHex(nonce);
-
-    if (+balance <= +data.value) {
-      data.value = this.utils.toHex(+balance - (+data.gasPrice * +data.gas));
+    if (!data.nonce) {
+      const nonce = await this.eth.getTransactionCount(data.from);
+      data.nonce = this.utils.toHex(nonce);
     }
 
-    return this.sendTransaction(data);
+    if (!data.gasPrice) {
+      data.gasPrice = this.utils.toHex(data.gasPrice || this.gasPrice);
+    }
+
+    if (!data.gasLimit) {
+      data.gasLimit = this.utils.toHex(data.gasLimit || this.gasLimit);
+    }
+
+    if (+balance <= +data.value) {
+      data.value = +balance - (+data.gasPrice * +data.gasLimit);
+    }
+
+    return new Observable(observer => {
+      // If the address is not in the database,
+      // create an exception and reject the transaction.
+      if (!address) return observer.error({ error: new Error(errorMsg[0]) });
+
+      // If, when calculating the value of the transaction
+      // and the transfer value, a negative
+      // result or equal to 0 occurs, we reject the transaction.
+      if (data.value <= 0) return observer.error({ error: new Error(errorMsg[1]) });
+
+      const txBlock = this.sendTransaction(data).subscribe(blockOrHash => {
+
+        observer.next(blockOrHash);
+
+        if (blockOrHash.hash) {
+          this.storage.onSetTx({
+            transactionHash: blockOrHash.hash,
+            address: address
+          });
+        }
+
+        this.print(blockOrHash, data);
+
+        if (blockOrHash.block) {
+          this.storage.onUpdateTx(blockOrHash.block);
+          observer.complete();
+          txBlock.unsubscribe();
+        }
+      }, err => {
+        observer.error({ error: err });
+        this.print({ error: err }, data);
+      });
+    });
   }
 
   public async onSingleBalance(address: string): Promise<string | number> {
@@ -115,7 +196,7 @@ export class Web3Control extends Wallet {
     return new Observable(result => {
       const elements: Interfaces.IBalance[] = [];
 
-      balance.forEach(async (el, index) => {
+      balance.forEach(async el => {
         const object =  await el;
 
         if (object.balance > 1 * 10e8 || object.balance == 0) {
@@ -138,7 +219,7 @@ export class Web3Control extends Wallet {
     });
   }
 
-  public async onAccountSync(data: Interfaces.ISyncAccaunt): Promise<Observable<Interfaces.ITx | any>> {
+  public async onAccountSync(data: Interfaces.ISyncAccaunt): Promise<Observable<Interfaces.ITx>> {
     /**
      * @param address: Ether address in hex.
      * @param data: Type orm data limit and ofset.
@@ -147,126 +228,87 @@ export class Web3Control extends Wallet {
     const balance = await this.onSingleBalance(data.address);
     const toEach = this.utils.toHex((+balance / count).toFixed());
     const addresess = await this.storage.getAddresses(data.data);
-    const gas = await this.onGas();
+    const source = from(addresess);
+
     let nonce = await this.eth.getTransactionCount(data.address);
     
-    const source = from(addresess);
     const txsDataPool = source.pipe(map(storeAddress => {
       // Create pool data tx. //
-      const txData = {
-        data: <Interfaces.ITxData>{
-          nonce: nonce,
-          from: data.address,
-          to: storeAddress.address,
-          value: toEach,
-          gasPrice: data.gasPrice || this.gasPrice,
-          gasLimit: gas.gasLimit,
-          gas: gas.gasUsed
-        },
-        address: storeAddress
-      }
+      const forTxData: Interfaces.ITxData = {
+        nonce: nonce,
+        from: data.address,
+        to: storeAddress.address,
+        value: toEach,
+        gasPrice: data.gasPrice || this.gasPrice
+      };
 
       nonce++;
       
-      return txData;
+      return forTxData;
     }));
 
     return new Observable(observer => {
-      txsDataPool.forEach(txData => {
-        // Each iteration sends a transaction. //
-        const data = txData.data;
-        const txBlock = this.sendTransaction(data).subscribe(blockOrHash => {
-          observer.next(blockOrHash);
-          
-          if (blockOrHash.hash) {
-            this.storage.onSetTx({
-              transactionHash: blockOrHash.hash,
-              address: txData.address
-            });
-          }
+      let k: number = 0;
 
-          if (blockOrHash.block) {
-            this.storage.onUpdateTx(blockOrHash.block);
-            txBlock.unsubscribe();
-          }
+      txsDataPool.forEach(async dataPromise => {
+        const data = await dataPromise;
+        const tx = await this.onSingleTx(data);
+
+        tx.subscribe(block => {
+          observer.next(block);
         }, err => {
-          observer.next({ error: err });
-        });
+          observer.next({ error: err})
+          k++;
+        }, () => k++);
+
+        if (k >= addresess.length) return observer.unsubscribe();
       });
     });
   }
 
-  public async onPoolMapTx(inputs: Interfaces.ITxFuncInput): Promise<Observable<Interfaces.ITxPool | any>> {
+  public async onPoolMapTx(inputs: Interfaces.ITxFuncInput): Promise<Observable<Interfaces.ITx>> {
     /**
      * @param inputs: Inputs object for Sendig transactionCount.
      */
     const addresess = await this.storage.getAddresses(inputs.data);
-    const gas = await this.onGas();
     const source = from(addresess);
-    const txsDataPool = source.pipe(map(storeAddress => {
-      return {
-        txData: <Interfaces.ITxData>{
-          from: storeAddress.address,
-          to: inputs.address,
-          value: this.utils.toHex(Utils.onRandom(inputs.min, inputs.max).toFixed()),
-          gasPrice: this.utils.toHex(Utils.onRandom(inputs.gas.min, inputs.gas.max).toFixed()),
-          gasLimit: this.utils.toHex(this.gasLimit || gas.gasLimit),
-          gas: this.utils.toHex(gas.gasUsed),
-          data: inputs.contractCode
-        },
-        address: storeAddress
+    
+    const txsDataPool = source.pipe(map((storeAddress: Address) => {
+      /**
+       * @method: Data preparation for transaction creation.
+       * @returns: interval transaction promise.
+       */
+      const data: Interfaces.ITxData = {
+        from: storeAddress.address,
+        to: inputs.address,
+        value: this.utils.toHex(Utils.onRandom(inputs.min, inputs.max).toFixed()),
+        gasPrice: this.utils.toHex(Utils.onRandom(inputs.gas.min, inputs.gas.max).toFixed()),
+        data: inputs.contractCode
       };
+
+      return data;
     }));
 
     return new Observable(observer => {
-      txsDataPool.forEach(async txData => {
-        const data = txData.txData;
-        const timer = await Utils.onRandom(inputs.time.min, inputs.time.max);
+      let k: number = 0;
 
+      txsDataPool.forEach(async dataPromise => {
+        const timer = Utils.onRandom(inputs.time.min, inputs.time.max);
         setTimeout(async () => {
-          data.nonce = await this.eth.getTransactionCount(data.from);
-          const balance = await this.onSingleBalance(data.from);
+          const data = await dataPromise;
+          const tx = await this.onSingleTx(data);
 
-          if (+balance <= +data.value) {
-            // If random value > balance this address. //
-            // gasPrice * gasLimit = Actual Tx Cost/Fee. //
-            data.value = this.utils.toHex(+balance - (+data.gasPrice * +data.gas));
-          }
-
-          if (+data.value <= 0) {
-            return observer.next({ error: new Error('On balance less than gas exposed!') });
-          }
-
-          const txBlock = this.sendTransaction(data).subscribe(blockOrHash => {
-
-            observer.next(blockOrHash);
-
-            if (blockOrHash.hash) {
-              this.storage.onSetTx({
-                transactionHash: blockOrHash.hash,
-                address: txData.address
-              });
-            }
-
-            if (blockOrHash.block) {
-              this.storage.onUpdateTx(blockOrHash.block);
-              txBlock.unsubscribe();
-            }
+          tx.subscribe(block => {
+            observer.next(block);
           }, err => {
-            const txFree = (+data.gasPrice * +data.gasLimit).toString();
-            observer.next({ error: err });
+            observer.next({ error: err});
+            k++;
+          }, () => k++);
 
-            console.log(
-              `skip tx address: ${data.from} tx fail,`.red,
-              `value: ${this.utils.fromWei(data.value, 'ether')} ETH,`.magenta,
-              `gas price: ${this.utils.fromWei(data.gasPrice, 'ether')} ETH,`.magenta,
-              `balance: ${this.utils.fromWei(balance, 'ether')} ETH,`.magenta,
-              `Cost/Fee: ${this.utils.fromWei(txFree, 'ether')} ETH`.magenta
-            );
-          });
+          if (k >= addresess.length) return observer.unsubscribe();
         }, timer);
       });
-    });    
+    });
   }
 
   public onWalletExport(): Interfaces.IexportAccaunt[] {

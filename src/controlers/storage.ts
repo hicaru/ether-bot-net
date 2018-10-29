@@ -117,10 +117,18 @@ export class Storage {
     });
   }
 
-  public async getAddresses(data: Interfaces.IPaginate) {
+  public async getAddresses(data: Interfaces.IPaginate): Promise<Address[]> {
     const cursor = await this.connet();
 
     return await cursor.manager.find(Address, data);
+  }
+
+  public async onAddress(address: string): Promise<Address> {
+    const cursor = await this.connet();
+
+    return await cursor.manager.findOne(Address, {
+      where: { address: address }
+    });
   }
 
   public async count(): Promise<number> {
