@@ -4,6 +4,8 @@ export class Utils {
 
     if (min === max) {
       return max;
+    } else if (max == 0) {
+      return 0;
     }
 
     try {

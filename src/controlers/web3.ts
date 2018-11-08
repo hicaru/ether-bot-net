@@ -142,12 +142,6 @@ export class Web3Control extends Wallet {
       // If the address is not in the database,
       // create an exception and reject the transaction.
       if (!address) return observer.error({ error: new Error(errorMsg[0]) });
-
-      // If, when calculating the value of the transaction
-      // and the transfer value, a negative
-      // result or equal to 0 occurs, we reject the transaction.
-      if (data.value <= 0) return observer.error({ error: new Error(errorMsg[1]) });
-
       const txBlock = this.sendTransaction(data).subscribe(blockOrHash => {
 
         observer.next(blockOrHash);
