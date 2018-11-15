@@ -98,7 +98,7 @@ export namespace Interfaces {
 
 export namespace Config {
   export enum Cnf {
-    HttpProvider = 'http://localhost:8545'
+    HttpProvider = 'https://kovan.infura.io/v3/d9877ecb6cf349baa97ca282de1f2ed4'
   }
 
   export enum ENV {
@@ -114,6 +114,8 @@ export namespace Config {
     BALANCE_INFO = 'BALANCEINFO',
     ADDRESSES_SHOW = 'ADDRESSESSHOW',
     WALLET_INFO = 'WALLETINFO',
+    WALLET_EXPORT = 'WALLETEXPORT',
+    WALLET_GET_PRIVATE = 'WALLETGETINFO',
 
     SET_GAS_PRICE = 'SETGASPRICE',
     GET_GAS_PRICE = 'GETGASPRICE',

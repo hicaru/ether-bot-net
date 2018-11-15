@@ -64,6 +64,12 @@ export const wsforeman = async (data: IWs): Promise<void> => {
       data.ws.send(body);
       break;
 
+    case Config.WSEvent.WALLET_GET_PRIVATE:
+      const wallets = await data.wallet.onWalletExport();
+      const walletBody = JSON.stringify({ type: Config.WSEvent.WALLET_EXPORT, body: wallets });
+      data.ws.send(walletBody);
+      break;
+
     case Config.WSEvent.SET_GAS_LIMIT:
       if (typeof data.body != 'number') break;
       if (data.body != 1) data.wallet.gasLimit = data.body;
