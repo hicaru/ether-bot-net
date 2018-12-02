@@ -49,7 +49,7 @@ export const wsforeman = async (data: IWs): Promise<void> => {
   switch (data.type) {
 
     case Config.WSEvent.BALANCE_ALL:
-      const balance = await data.wallet.onAllBalance({ take: +Config.ENV.numberOf });
+      const balance = data.wallet.onAllBalance({ take: +Config.ENV.numberOf });
       balance.subscribe(result => {
         data.ws.send(JSON.stringify({
           type: Config.WSEvent.BALANCE_INFO,

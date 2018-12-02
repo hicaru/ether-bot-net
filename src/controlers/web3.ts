@@ -1,12 +1,13 @@
 import 'colors';
-import { from, Observable } from 'rxjs';
-import { map } from 'rxjs/operators';
+import { from, Observable, of, merge } from 'rxjs';
+import { map, mergeAll, mergeMap, concatMap, groupBy, toArray, mapTo } from 'rxjs/operators';
 
 import { Wallet } from '../ether/wallet';
 import { Storage } from './storage';
 import { Interfaces } from '../config/base';
 import { Utils } from './utils';
 import { Address } from '../entity/address';
+import { Web3Interfaces } from '../ether/web3-Interface';
 
 
 export class Web3Control extends Wallet {
@@ -51,7 +52,6 @@ export class Web3Control extends Wallet {
     await this.storage.dependencies(obj);
     await this.storage.createAddress(addresess);
   }
-
   private print(blockOrHash: Interfaces.ITx, data: Interfaces.ITxData): void {
     if (!this.logs) return null;
  
@@ -81,7 +81,6 @@ export class Web3Control extends Wallet {
       );
     }
   }
-
   private async onGas(): Promise<{gasUsed: number | string, gasLimit: number | string}> {
     const blockNumber = await this.eth.getBlockNumber();
     const block: Interfaces.IBlock = await this.eth.getBlock(blockNumber);
@@ -116,10 +115,10 @@ export class Web3Control extends Wallet {
      */
     const address = await this.storage.onAddress(data.from);
     const balance = await this.onSingleBalance(data.from);
-    const errorMsg: string[] = [
-      'PrivateKey is none.',
-      'On balance less than gas exposed!'
-    ];
+
+    if (!address) {
+      throw new Error('address does not exist');
+    }
 
     if (!data.nonce) {
       const nonce = await this.eth.getTransactionCount(data.from);
@@ -134,17 +133,14 @@ export class Web3Control extends Wallet {
       data.gasLimit = this.utils.toHex(data.gasLimit || this.gasLimit);
     }
 
-    if (+balance <= +data.value) {
-      data.value = +balance - (+data.gasPrice * +data.gasLimit);
+    if (this.utils.toBN(balance) <= this.utils.toBN(data.value)) {
+      const _gasPrice = this.utils.toBN(data.gasPrice);
+      const _gasLimit = this.utils.toBN(data.gasLimit);
+      data.value = this.utils.toBN(balance).sub(_gasPrice.mul(_gasLimit));
     }
 
-    return new Observable(observer => {
-      // If the address is not in the database,
-      // create an exception and reject the transaction.
-      if (!address) return observer.error({ error: new Error(errorMsg[0]) });
-      const txBlock = this.sendTransaction(data).subscribe(blockOrHash => {
-
-        observer.next(blockOrHash);
+    return this.sendTransaction(data).pipe(
+      map(blockOrHash => {
 
         if (blockOrHash.hash) {
           this.storage.onSetTx({
@@ -157,14 +153,24 @@ export class Web3Control extends Wallet {
 
         if (blockOrHash.block) {
           this.storage.onUpdateTx(blockOrHash.block);
-          observer.complete();
-          txBlock.unsubscribe();
         }
-      }, err => {
-        observer.error({ error: err });
-        this.print({ error: err }, data);
-      });
-    });
+
+        return blockOrHash;
+      })
+    );
+  }
+
+  public _onSingleTx(data: Interfaces.ITxData) {
+    const address = from(this.storage.onAddress(data.from));
+    const balance = from(this.onSingleBalance(data.from));
+    const newTransaction = merge(address, balance);
+
+    return newTransaction.pipe(
+      toArray(),
+      map(el => {
+
+      })
+    );
   }
 
   public async onSingleBalance(address: string): Promise<string | number> {
@@ -174,72 +180,61 @@ export class Web3Control extends Wallet {
     return await this.eth.getBalance(address);
   }
 
-  public async onAllBalance(data: Interfaces.IPaginate): Promise<Observable<Interfaces.IBalance[]>> {
+  public onAllBalance(data: Interfaces.IPaginate) {
     /**
      * @param data: Type orm object, limit or ofset.
      */
-    const addresess = await this.storage.getAddresses(data);
+    const addresess = from(this.storage.getAddresses(data)).pipe(
+      mergeMap(address => from(address)),
+      mergeMap(address => {
+        return from(this.onSingleBalance(address.address)).pipe(
+          map(balance => {
+            const gwei = this.utils.toBN(this.utils.unitMap.Gwei);
+            const unit = balance > gwei ? 'ether' : 'wei';
 
-    const balance = addresess.map(async address => {
-      return {
-        balance: await this.onSingleBalance(address.address),
-        address: address.address
-      }
-    });
+            return <Interfaces.IBalance>{
+              address: address.address,
+              balance: `${this.utils.fromWei(balance, unit)}${unit}`,
+              unit256: balance
+            }
+          })
+        );
+      }),
+      toArray()
+    );
 
-    return new Observable(result => {
-      const elements: Interfaces.IBalance[] = [];
-
-      balance.forEach(async el => {
-        const object =  await el;
-
-        if (object.balance > 1 * 10e8 || object.balance == 0) {
-          object.balance = `${this.utils.fromWei(object.balance, 'ether')}ETH`;
-        } else {
-          object.balance = `${this.utils.fromWei(object.balance, 'wei')}Wei`;
-        }
-
-        elements.push(<Interfaces.IBalance>{
-          address: object.address,
-          balance: object.balance,
-          unit256: +object.balance
-        });
-
-        if (balance.length === elements.length) {
-          result.next(elements);
-          result.complete();
-        }
-      });
-    });
+    return addresess;
   }
 
-  public async onAccountSync(data: Interfaces.ISyncAccaunt): Promise<Observable<Interfaces.ITx>> {
+  public async onAccountSync(data: Interfaces.ISyncAccaunt) {
     /**
      * @param address: Ether address in hex.
      * @param data: Type orm data limit and ofset.
      */
-    const count = await this.storage.count();
-    const balance = await this.onSingleBalance(data.address);
-    const toEach = this.utils.toHex((+balance / count).toFixed());
+    const count = this.utils.toBN(await this.storage.count());
+    const balance = this.utils.toBN(await this.onSingleBalance(data.address));
+    const toEach = balance.div(count);
     const addresess = await this.storage.getAddresses(data.data);
     const source = from(addresess);
 
     let nonce = await this.eth.getTransactionCount(data.address);
     
-    const txsDataPool = source.pipe(map(storeAddress => {
-      // Create pool data tx. //
-      const forTxData: Interfaces.ITxData = {
-        nonce: nonce,
-        from: data.address,
-        to: storeAddress.address,
-        value: toEach,
-        gasPrice: data.gasPrice || this.gasPrice
-      };
+    const txsDataPool = source.pipe(
+      map(storeAddress => {
+        // Create pool data tx. //
+        const forTxData: Interfaces.ITxData = {
+          nonce: nonce,
+          from: data.address,
+          to: storeAddress.address,
+          value: toEach,
+          gasPrice: this.utils.toBN(data.gasPrice || this.gasPrice)
+        };
 
-      nonce++;
-      
-      return forTxData;
-    }));
+        nonce++;
+        
+        return forTxData;
+      })
+    );
 
     return new Observable(observer => {
       let k: number = 0;

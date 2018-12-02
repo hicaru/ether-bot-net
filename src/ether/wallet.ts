@@ -4,6 +4,8 @@ import { Config } from '../config/base';
 import { Interfaces } from '../config/base';
 import { Observable } from 'rxjs';
 
+import { Web3Interfaces } from './web3-Interface';
+
 export class Wallet {
   /**
    * @param _web3: Web3 Object, for work with ether.
@@ -17,10 +19,10 @@ export class Wallet {
    * @method sendTransaction: Create and send transaction.
    */
 
-  private _web3 = new Web3(Config.Cnf.HttpProvider);
+  private _web3: Web3Interfaces.IWeb3 = new Web3(Config.Cnf.HttpProvider);
   protected eth = this._web3.eth;
   protected accounts = this._web3.eth.accounts;
-  public utils = this._web3.utils;
+  public utils: Web3Interfaces.IUtils = this._web3.utils;
   protected addresses = this._web3.eth.getAccounts;
 
   constructor() { }
@@ -56,19 +58,23 @@ export class Wallet {
   }
 
   protected sendTransaction(data: Interfaces.ITxData): Observable<Interfaces.ITx> {
-    return new Observable(obs => {
+    return new Observable(ObservableTx => {
       this._web3.eth.sendTransaction(data, (err, hash) => {
         if (err) {
-          obs.error(err);
+          ObservableTx.error(err);
+          ObservableTx.complete();
+          ObservableTx.unsubscribe();
         }
 
-        obs.next({ hash: hash });
+        ObservableTx.next({ hash: hash });
       }).then(block => {
-        obs.next({ block: block });
-        obs.complete();
+        ObservableTx.next({ block: block });
+        ObservableTx.complete();
+        ObservableTx.unsubscribe();
       }).catch(err => {
-        obs.error(err);
-        obs.complete();
+        ObservableTx.error(err);
+        ObservableTx.complete();
+        ObservableTx.unsubscribe();
       });
     });
   }

@@ -1,6 +1,6 @@
 import { getConnection } from 'typeorm';
-import { from } from 'rxjs';
-import { map } from 'rxjs/operators';
+import { from, of } from 'rxjs';
+import { map, mergeMap } from 'rxjs/operators';
 import { validate } from 'class-validator';
 
 import { Interfaces } from '../config/base';
@@ -119,8 +119,9 @@ export class Storage {
 
   public async getAddresses(data: Interfaces.IPaginate): Promise<Address[]> {
     const cursor = await this.connet();
+    const addresses = await cursor.manager.find(Address, data);
 
-    return await cursor.manager.find(Address, data);
+    return addresses;
   }
 
   public async onAddress(address: string): Promise<Address> {

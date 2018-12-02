@@ -5,24 +5,27 @@ import { WsServer } from './ws-server/app';
 
 createConnection().then(async connection => {
 
-  // const UserInputPassword = await password;
+  // const ws = new WsServer(8999, '12345678');
+ 
+  const wallet = new Web3Control('12345678', 100);
 
-  const ws = new WsServer(8999, '12345678');
+  // wallet.onAccountSync({
+  //   address: '0xff475a95C6cA681C7947FF6Dda91edFc57F79761'
+  // }).then(test => test.subscribe(console.log));
 
-  // const console = new ConsoleGUI(UserInputPassword);
-  
+  // wallet.onAllBalance({ take: 100, skip: 0 }).subscribe(console.log);
 
-  // const wallet = new Web3Control('12345678', 100);
-
-  // wallet.onSingleTx({
-  //   from: '0x4D89aBeDA15d4bb433D4E3FF06D10845F2783af0',
-  //   to: '0xBE32363Fa3C46e43B90CE35ae6d209e2e1ed07C9',
-  //   value: 10000000000
-  // });
+  wallet._onSingleTx({
+    from: '0xff475a95C6cA681C7947FF6Dda91edFc57F79761',
+    to: '0xBE32363Fa3C46e43B90CE35ae6d209e2e1ed07C9',
+    value: 10000000000
+  }).subscribe(console.log);
 
   // wallet.onSingleBalance('0x4D89aBeDA15d4bb433D4E3FF06D10845F2783af0').then(console.log);
 
-  // await wallet.onAllBalance({ take: 100, skip: 0 });
+  // wallet.onAllBalance({ take: 100, skip: 0 }).then(address => {
+  //   address.subscribe(console.log);
+  // });
 
   // wallet.onAccountSync('0xFfe8FdA7Ee1813309Aa10343A6228A8f247fef1d', {
   //   take: 100, skip: 0
