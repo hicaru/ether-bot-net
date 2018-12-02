@@ -83,7 +83,6 @@ export class Web3Control extends Wallet {
     }
 
     if (blockOrHash['message']) {
-      console.log(data);
       const txFree = (+data.gasPrice * +data.gas).toString();
       console.log(
         `[skip tx address]: ${data.from} tx fail,`.red,
@@ -132,12 +131,12 @@ export class Web3Control extends Wallet {
       return {
         address: await this.storage.onAddress(data.from),
         balance: await this.onSingleBalance(data.from),
-        nonce: data.nonce ||  await this.eth.getTransactionCount(data.from),
+        nonce: data.nonce || await this.eth.getTransactionCount(data.from),
         gasPrice: this.utils.toHex(data.gasPrice || this.gasPrice),
         gasLimit: this.utils.toHex(data.gasLimit || this.gasLimit)
       };
     };
-    const newTransaction = from(warp());
+    const newTransaction = from(warp());    
 
     return newTransaction.pipe(
       mergeMap(object => {
@@ -251,14 +250,14 @@ export class Web3Control extends Wallet {
   public onPoolMapTx(inputs: Interfaces.ITxFuncInput) {
     /**
      * @param inputs: Inputs object for Sendig transactionCount.
-     */
-    const timer = +Utils.onRandom(inputs.time.min, inputs.time.max);
+     */    
+    const timer = +Utils.onRandom(inputs.time.min, inputs.time.max);    
     const source = from(this.storage.getAddresses(inputs.data)).pipe(
       timeout(timer),
       mergeMap(address => from(address)),
       mergeMap(address => {
-        const value = this.utils.toBN(Utils.onRandom(inputs.min, inputs.max));
-        const gasPrice = this.utils.toBN(Utils.onRandom(inputs.gas.min, inputs.gas.max));
+        const value = this.utils.toBN(Utils.onRandom(+inputs.min, +inputs.max));
+        const gasPrice = this.utils.toBN(Utils.onRandom(+inputs.gas.min, +inputs.gas.max));
         const data =  <Interfaces.ITxData>{
           from: address.address,
           to: inputs.address,
@@ -266,7 +265,7 @@ export class Web3Control extends Wallet {
           gasPrice: gasPrice,
           data: inputs.contractCode
         };
-
+        
         return this.onSingleTx(data);
       })
     );

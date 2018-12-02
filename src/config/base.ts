@@ -46,10 +46,10 @@ export namespace Interfaces {
   export interface ITxFuncInput {
     address: string;
     data: IPaginate;
-    min: number;
-    max: number;
+    min: number | string;
+    max: number | string;
     contractCode?: string;
-    gas: { min: number, max: number };
+    gas: { min: number | string, max: number | string };
     time: { min: number, max: number };
   }
 
