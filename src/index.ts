@@ -5,9 +5,11 @@ import { WsServer } from './ws-server/app';
 
 createConnection().then(async connection => {
 
-  // const ws = new WsServer(8999, '12345678');
+  const ws = new WsServer(8999, '12345678');
  
-  const wallet = new Web3Control('12345678', 100);
+  // const wallet = new Web3Control('12345678', 100);
+
+  
 
   // wallet.onAccountSync({
   //   address: '0xff475a95C6cA681C7947FF6Dda91edFc57F79761'
@@ -15,11 +17,11 @@ createConnection().then(async connection => {
 
   // wallet.onAllBalance({ take: 100, skip: 0 }).subscribe(console.log);
 
-  wallet._onSingleTx({
-    from: '0xff475a95C6cA681C7947FF6Dda91edFc57F79761',
-    to: '0xBE32363Fa3C46e43B90CE35ae6d209e2e1ed07C9',
-    value: 10000000000
-  }).subscribe(console.log);
+  // wallet.onSingleTx({
+  //   from: '0x996Ff7B6E1e9e955d3813b142d1110735C0EC8e6',
+  //   to: '0xA98060409a31FdF92754ADD44645d273578185C7',
+  //   value: '10000000000'
+  // }).subscribe();
 
   // wallet.onSingleBalance('0x4D89aBeDA15d4bb433D4E3FF06D10845F2783af0').then(console.log);
 
@@ -31,7 +33,7 @@ createConnection().then(async connection => {
   //   take: 100, skip: 0
   // });
 
-  // const txPool = await wallet.onPoolMapTx({
+  // const txPool = wallet.onPoolMapTx({
   //   address: '0xA98060409a31FdF92754ADD44645d273578185C7',
   //   data: { take: 100, skip: 0 },
   //   min: 1 * 1e18,
@@ -44,7 +46,7 @@ createConnection().then(async connection => {
   //     max: 1,
   //     min: 100
   //   }
-  // });
+  // }).subscribe();
 
   // txPool.subscribe(tx => {
   //   // console.log(tx);

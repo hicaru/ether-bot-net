@@ -1,13 +1,14 @@
 import 'colors';
-import { from, Observable, of, merge } from 'rxjs';
-import { map, mergeAll, mergeMap, concatMap, groupBy, toArray, mapTo } from 'rxjs/operators';
+import { from, Observable, of } from 'rxjs';
+import {
+  map, mergeMap, toArray,
+  catchError, timeout
+} from 'rxjs/operators';
 
 import { Wallet } from '../ether/wallet';
 import { Storage } from './storage';
 import { Interfaces } from '../config/base';
 import { Utils } from './utils';
-import { Address } from '../entity/address';
-import { Web3Interfaces } from '../ether/web3-Interface';
 
 
 export class Web3Control extends Wallet {
@@ -80,14 +81,28 @@ export class Web3Control extends Wallet {
         blockOrHash.error['message']
       );
     }
+
+    if (blockOrHash['message']) {
+      console.log(data);
+      const txFree = (+data.gasPrice * +data.gas).toString();
+      console.log(
+        `[skip tx address]: ${data.from} tx fail,`.red,
+        `[value]: ${this.utils.fromWei(data.value, 'ether')} ETH,`.magenta,
+        `[gas price]: ${this.utils.fromWei(data.gasPrice, 'ether')} ETH,`.magenta,
+        `[Cost/Fee]: ${this.utils.fromWei(txFree, 'ether')} ETH`.magenta,
+        blockOrHash['message']
+      );
+    }
   }
   private async onGas(): Promise<{gasUsed: number | string, gasLimit: number | string}> {
     const blockNumber = await this.eth.getBlockNumber();
     const block: Interfaces.IBlock = await this.eth.getBlock(blockNumber);
+    console.log('gasLimit: ', block.gasLimit);
+    console.log('gasUsed: ', block.gasUsed);
 
-    this.gasLimit = block.gasLimit || 21000;
+    this.gasLimit = block.gasLimit ? block.gasLimit : 21000;
     this.gasPrice = 3000000000;
-    this.gasUsed = block.gasUsed || this.gasLimit;
+    this.gasUsed = block.gasUsed ? block.gasUsed : this.gasLimit;
 
     return { gasUsed: this.gasUsed, gasLimit: this.gasLimit };
   }
@@ -109,66 +124,44 @@ export class Web3Control extends Wallet {
     this.gasLimit = gas.gasLimit;
   }
 
-  public async onSingleTx(data: Interfaces.ITxData): Promise<Observable<Interfaces.ITx>> {
+  public onSingleTx(data: Interfaces.ITxData): Observable<Interfaces.ITx> {
     /**
      * @param data: Transaction data object.
-     */
-    const address = await this.storage.onAddress(data.from);
-    const balance = await this.onSingleBalance(data.from);
-
-    if (!address) {
-      throw new Error('address does not exist');
-    }
-
-    if (!data.nonce) {
-      const nonce = await this.eth.getTransactionCount(data.from);
-      data.nonce = this.utils.toHex(nonce);
-    }
-
-    if (!data.gasPrice) {
-      data.gasPrice = this.utils.toHex(data.gasPrice || this.gasPrice);
-    }
-
-    if (!data.gasLimit) {
-      data.gasLimit = this.utils.toHex(data.gasLimit || this.gasLimit);
-    }
-
-    if (this.utils.toBN(balance) <= this.utils.toBN(data.value)) {
-      const _gasPrice = this.utils.toBN(data.gasPrice);
-      const _gasLimit = this.utils.toBN(data.gasLimit);
-      data.value = this.utils.toBN(balance).sub(_gasPrice.mul(_gasLimit));
-    }
-
-    return this.sendTransaction(data).pipe(
-      map(blockOrHash => {
-
-        if (blockOrHash.hash) {
-          this.storage.onSetTx({
-            transactionHash: blockOrHash.hash,
-            address: address
-          });
-        }
-
-        this.print(blockOrHash, data);
-
-        if (blockOrHash.block) {
-          this.storage.onUpdateTx(blockOrHash.block);
-        }
-
-        return blockOrHash;
-      })
-    );
-  }
-
-  public _onSingleTx(data: Interfaces.ITxData) {
-    const address = from(this.storage.onAddress(data.from));
-    const balance = from(this.onSingleBalance(data.from));
-    const newTransaction = merge(address, balance);
+    */
+    const warp = async () => {
+      return {
+        address: await this.storage.onAddress(data.from),
+        balance: await this.onSingleBalance(data.from),
+        nonce: data.nonce ||  await this.eth.getTransactionCount(data.from),
+        gasPrice: this.utils.toHex(data.gasPrice || this.gasPrice),
+        gasLimit: this.utils.toHex(data.gasLimit || this.gasLimit)
+      };
+    };
+    const newTransaction = from(warp());
 
     return newTransaction.pipe(
-      toArray(),
-      map(el => {
+      mergeMap(object => {
+        if (!object.address) {
+          throw new Error('address does not exist');
+        }
 
+        if (this.utils.toBN(object.balance) <= this.utils.toBN(data.value)) {
+          const _gasPrice = this.utils.toBN(object.gasPrice);
+          const _gasLimit = this.utils.toBN(object.gasLimit);
+          data.value = this.utils.toBN(object.balance).sub(_gasPrice.mul(_gasLimit));
+        }
+
+        data.nonce = object.nonce;
+        data.gasLimit = object.gasLimit;
+        data.gasPrice = object.gasPrice;
+
+        return this.sendTransaction(data);
+      }),
+      catchError(err => of(err)),
+      map(blockOrHashOrErr => {
+        this.print(blockOrHashOrErr, data);
+
+        return blockOrHashOrErr;
       })
     );
   }
@@ -255,49 +248,30 @@ export class Web3Control extends Wallet {
     });
   }
 
-  public async onPoolMapTx(inputs: Interfaces.ITxFuncInput): Promise<Observable<Interfaces.ITx>> {
+  public onPoolMapTx(inputs: Interfaces.ITxFuncInput) {
     /**
      * @param inputs: Inputs object for Sendig transactionCount.
      */
-    const addresess = await this.storage.getAddresses(inputs.data);
-    const source = from(addresess);
-    
-    const txsDataPool = source.pipe(map((storeAddress: Address) => {
-      /**
-       * @method: Data preparation for transaction creation.
-       * @returns: interval transaction promise.
-       */
-      const data: Interfaces.ITxData = {
-        from: storeAddress.address,
-        to: inputs.address,
-        value: this.utils.toHex(Utils.onRandom(inputs.min, inputs.max).toFixed()),
-        gasPrice: this.utils.toHex(Utils.onRandom(inputs.gas.min, inputs.gas.max).toFixed()),
-        data: inputs.contractCode
-      };
+    const timer = +Utils.onRandom(inputs.time.min, inputs.time.max);
+    const source = from(this.storage.getAddresses(inputs.data)).pipe(
+      timeout(timer),
+      mergeMap(address => from(address)),
+      mergeMap(address => {
+        const value = this.utils.toBN(Utils.onRandom(inputs.min, inputs.max));
+        const gasPrice = this.utils.toBN(Utils.onRandom(inputs.gas.min, inputs.gas.max));
+        const data =  <Interfaces.ITxData>{
+          from: address.address,
+          to: inputs.address,
+          value: value,
+          gasPrice: gasPrice,
+          data: inputs.contractCode
+        };
 
-      return data;
-    }));
+        return this.onSingleTx(data);
+      })
+    );
 
-    return new Observable(observer => {
-      let k: number = 0;
-
-      txsDataPool.forEach(async dataPromise => {
-        const timer = Utils.onRandom(inputs.time.min, inputs.time.max);
-        setTimeout(async () => {
-          const data = await dataPromise;
-          const tx = await this.onSingleTx(data);
-
-          tx.subscribe(block => {
-            observer.next(block);
-          }, err => {
-            observer.next({ error: err});
-            k++;
-          }, () => k++);
-
-          if (k >= addresess.length) return observer.unsubscribe();
-        }, timer);
-      });
-    });
+    return source;
   }
 
   public onWalletExport(): Interfaces.IexportAccaunt[] {
