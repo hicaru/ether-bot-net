@@ -62,8 +62,10 @@ export const wsforeman = async (data: IWs): Promise<void> => {
       break;
 
     case Config.WSEvent.ADDRESSES_SHOW:
-      const addresses = data.wallet.onAddresses({ take: Config.ENV.numberOf, skip: 0 });
-      const body = JSON.stringify({ type: Config.WSEvent.WALLET_INFO, body: addresses });
+      const body = JSON.stringify({
+        type: Config.WSEvent.WALLET_INFO,
+        body: data.wallet.addresses
+      });
       data.ws.send(body);
       break;
 

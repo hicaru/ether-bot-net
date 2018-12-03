@@ -41,7 +41,6 @@ export class Web3Control extends Wallet {
      * @param numberof: This number, a number of accounts.
      */
     super();
-    this.onGas();
     this.run(password, numberof);
   }
 
@@ -96,12 +95,15 @@ export class Web3Control extends Wallet {
   private async onGas(): Promise<{gasUsed: number | string, gasLimit: number | string}> {
     const blockNumber = await this.eth.getBlockNumber();
     const block: Interfaces.IBlock = await this.eth.getBlock(blockNumber);
-    console.log('gasLimit: '.gray, block.gasLimit.toString().gray);
-    console.log('gasUsed: '.gray, block.gasUsed.toString().gray);
+    const gasPrice = await this.eth.getGasPrice();
 
     this.gasLimit = block.gasLimit ? block.gasLimit : 21000;
-    this.gasPrice = 3000000000;
+    this.gasPrice = gasPrice;
     this.gasUsed = block.gasUsed ? block.gasUsed : this.gasLimit;
+
+    console.log('gasLimit: '.gray, `${this.gasLimit}`.gray);
+    console.log('gasUsed: '.gray, `${this.gasUsed}`.gray);
+    console.log('gasPrice: '.gray, `${this.gasPrice}`.gray);
 
     return { gasUsed: this.gasUsed, gasLimit: this.gasLimit };
   }
@@ -131,6 +133,7 @@ export class Web3Control extends Wallet {
     const warp = async () => {
       return {
         address: data.from,
+        chainId: await this.eth.net.getId(),
         balance: await this.onSingleBalance(data.from),
         nonce: data.nonce || await this.eth.getTransactionCount(data.from),
         gasPrice: this.utils.toHex(data.gasPrice || this.gasPrice),
@@ -154,6 +157,7 @@ export class Web3Control extends Wallet {
         data.nonce = object.nonce;
         data.gasLimit = object.gasLimit;
         data.gasPrice = object.gasPrice;
+        data.chainId = object.chainId;
 
         return this.sendTransaction(data);
       }),

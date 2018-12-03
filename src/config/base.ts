@@ -35,6 +35,7 @@ export namespace Interfaces {
     value: number | string;
     data?: any;
     gas?: number | string;
+    chainId?: number | string;
   }
 
   export interface IPaginate {
