@@ -114,7 +114,11 @@ export class Wallet {
     const addresses = [];
 
     for (let i = skip; i <= take; i++) {
-      addresses.push(wallet[i].address);
+      try {
+        addresses.push(wallet[i].address);
+      } catch (err) {
+        break;
+      }
     }
 
     return addresses;

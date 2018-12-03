@@ -46,12 +46,13 @@ export class Web3Control extends Wallet {
     this.run(password, numberof);
   }
 
-  private async onCreateWallet(password: string, numberof: number): Promise<void> {
+  private async onCreateWallet(password: string, numberof: number): Promise<string[]> {
     const addresess = this.onGenWallets(numberof);
     const obj = this.onEncrypt(password);
 
-    this.addresses = addresess;
     await this.storage.dependencies(obj);
+
+    return addresess;
   }
   private print(blockOrHash: Interfaces.ITx, data: Interfaces.ITxData): void {
     if (!this.logs) return null;
@@ -114,13 +115,14 @@ export class Web3Control extends Wallet {
     const gas = await this.onGas();
 
     if (encryptWallet.length <= 0) {
-      await this.onCreateWallet(password, numberof);
+      this.addresses = await this.onCreateWallet(password, numberof);
       encryptWallet = await this.storage.encryptAccaunt;
     }
     
-    const address = this.accounts.wallet.decrypt(encryptWallet, password);
-    console.log(address);
+    this.accounts.wallet.decrypt(encryptWallet, password);
     this.gasLimit = gas.gasLimit;
+
+    this.addresses = this.onAddresses({ take: 100, skip: 0 });
   }
 
   public onSingleTx(data: Interfaces.ITxData): Observable<Interfaces.ITx> {
