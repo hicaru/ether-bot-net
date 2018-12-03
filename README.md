@@ -1,4 +1,4 @@
-# BOT in developing.
+# Reactive BOT
         
 Steps to run this project:
 

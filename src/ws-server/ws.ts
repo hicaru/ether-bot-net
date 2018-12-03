@@ -49,12 +49,15 @@ export const wsforeman = async (data: IWs): Promise<void> => {
   switch (data.type) {
 
     case Config.WSEvent.BALANCE_ALL:
-      const balance = data.wallet.onAllBalance({ take: +Config.ENV.numberOf });
-      balance.subscribe(result => {
+      const allBalance = data
+      .wallet
+      .onAllBalance({ take: +Config.ENV.numberOf })
+      .subscribe(result => {
         data.ws.send(JSON.stringify({
           type: Config.WSEvent.BALANCE_INFO,
           body: result
         }));
+        allBalance.unsubscribe();
       }, errorHandler);
       break;
 
@@ -71,7 +74,6 @@ export const wsforeman = async (data: IWs): Promise<void> => {
       break;
 
     case Config.WSEvent.SET_GAS_LIMIT:
-      if (typeof data.body != 'number') break;
       if (data.body != 1) data.wallet.gasLimit = data.body;
       data.ws.send(JSON.stringify({
         type: Config.WSEvent.GET_GAS_LIMIT,
@@ -90,12 +92,17 @@ export const wsforeman = async (data: IWs): Promise<void> => {
 
     case Config.WSEvent.SYNCHRONIZATION:
       const txSync = await data.wallet.onAccountSync(data.body);
-      txSync.subscribe(transactionHandler, errorHandler);
+      txSync.subscribe(
+        transactionHandler,
+        errorHandler
+      );
       break;
 
     case Config.WSEvent.SEND_A_TRANSACTION:
-      const txOne = await data.wallet.onSingleTx(data.body);
-      txOne.subscribe(transactionHandler, errorHandler);
+      data.wallet.onSingleTx(data.body).subscribe(
+        transactionHandler,
+        errorHandler
+      );
       break;
     
     case Config.WSEvent.SEND_POOL_TRANSACTION:

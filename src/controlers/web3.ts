@@ -25,7 +25,6 @@ export class Web3Control extends Wallet {
    * @method onAllBalance: Get all accaunts balance.
    * @method onAccountSync: Account balance synchronization.
    * @method onPoolMapTx: Create pool transactions with interval.
-   * @method onWalletExport: Export all accauntes {address, privateKey}.
    * @method onGas: Get gas limit and gasUserd from last block.
    * @method print: Console write controll.
    */
@@ -117,12 +116,12 @@ export class Web3Control extends Wallet {
     if (encryptWallet.length <= 0) {
       this.addresses = await this.onCreateWallet(password, numberof);
       encryptWallet = await this.storage.encryptAccaunt;
+    } else {
+      this.accounts.wallet.decrypt(encryptWallet, password);
+      this.addresses = this.onAddresses({ take: 100, skip: 0 });
     }
     
-    this.accounts.wallet.decrypt(encryptWallet, password);
     this.gasLimit = gas.gasLimit;
-
-    this.addresses = this.onAddresses({ take: 100, skip: 0 });
   }
 
   public onSingleTx(data: Interfaces.ITxData): Observable<Interfaces.ITx> {
@@ -174,12 +173,11 @@ export class Web3Control extends Wallet {
     return await this.eth.getBalance(address);
   }
 
-  public onAllBalance(data: Interfaces.IPaginate) {
+  public onAllBalance(data: Interfaces.IPaginate): Observable<Interfaces.IBalance[]> {
     /**
      * @param data: Type orm object, limit or ofset.
      */
     const addresess = from(this.onAddresses(data)).pipe(
-      mergeMap(address => from(address)),
       mergeMap(address => {
         return from(this.onSingleBalance(address)).pipe(
           map(balance => {
@@ -205,11 +203,11 @@ export class Web3Control extends Wallet {
      * @param address: Ether address in hex.
      * @param data: Type orm data limit and ofset.
      */
-    const addresess = this.onAddresses(data.data);
-    const count = this.utils.toBN(addresess.length);
+    const addresses = this.onAddresses(data.data);
+    const count = this.utils.toBN(addresses.length);
     const balance = this.utils.toBN(await this.onSingleBalance(data.address));
     const toEach = balance.div(count);
-    const source = from(addresess);
+    const source = from(addresses);
 
     let nonce = await this.eth.getTransactionCount(data.address);
 
@@ -244,7 +242,7 @@ export class Web3Control extends Wallet {
           k++;
         }, () => k++);
 
-        if (k >= addresess.length) return observer.unsubscribe();
+        if (k >= addresses.length) return observer.unsubscribe();
       });
     });
   }
@@ -256,7 +254,6 @@ export class Web3Control extends Wallet {
     const timer = +Utils.onRandom(inputs.time.min, inputs.time.max);    
     const source = from(this.onAddresses(inputs.data)).pipe(
       timeout(timer),
-      mergeMap(address => from(address)),
       mergeMap(address => {
         const value = this.utils.toBN(Utils.onRandom(+inputs.min, +inputs.max));
         const gasPrice = this.utils.toBN(Utils.onRandom(+inputs.gas.min, +inputs.gas.max));
