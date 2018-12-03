@@ -1,5 +1,3 @@
-import { Tx } from "../entity/tx";
-
 export namespace Interfaces {
   export interface IEncryptAccaunt {
     version: number;
@@ -23,8 +21,9 @@ export namespace Interfaces {
 
   export interface ITx {
     hash?: string;
-    block?: Tx;
+    block?: IBlock;
     error?: string | Error;
+    message?: string;
   }
 
   export interface ITxData {
@@ -39,8 +38,8 @@ export namespace Interfaces {
   }
 
   export interface IPaginate {
-    take?: number;
-    skip?: number;
+    take?: number | string;
+    skip?: number | string;
   }
 
   export interface ITxFuncInput {
@@ -53,9 +52,14 @@ export namespace Interfaces {
     time: { min: number, max: number };
   }
 
-  export interface IexportAccaunt {
+  export interface IAccaunt {
     address: string;
-    privateKey: string;
+    privateKey?: string;
+  }
+
+  export interface IexportAccaunt {
+    elements: IAccaunt[] | IAccaunt;
+    count: number;
   }
 
   export interface IBalance {
@@ -81,6 +85,9 @@ export namespace Interfaces {
     logsBloom: string;
     miner: string;
     number: number;
+    blockNumber: number;
+    transactionHash: string;
+    status: boolean;
     parentHash?: string;
     receiptsRoot: string;
     sealFields?: string[];
@@ -103,7 +110,8 @@ export namespace Config {
 
   export enum ENV {
     web = 'WEB',
-    numberOf = 100
+    numberOf = 100,
+    port = 8999
   }
 
   export enum WSEvent {

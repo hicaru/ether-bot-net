@@ -6,6 +6,7 @@ import { Observable } from 'rxjs';
 
 import { Web3Interfaces } from './web3-Interface';
 
+
 export class Wallet {
   /**
    * @param _web3: Web3 Object, for work with ether.
@@ -22,12 +23,13 @@ export class Wallet {
   private _web3: Web3Interfaces.IWeb3 = new Web3(Config.Cnf.HttpProvider);
   protected eth = this._web3.eth;
   protected accounts = this._web3.eth.accounts;
+  
   public utils: Web3Interfaces.IUtils = this._web3.utils;
-  protected addresses = this._web3.eth.getAccounts;
+  public addresses: string[];
 
   constructor() { }
 
-  protected onGenWallets(numberof: number = 5): string[] {
+  protected onGenWallets(numberof: number = Config.ENV.numberOf): string[] {
     /**
      * @param numberof: Number of accounts.
      */
@@ -77,6 +79,45 @@ export class Wallet {
         ObservableTx.unsubscribe();
       });
     });
+  }
+
+  public onWalletExport(): Interfaces.IAccaunt[] {
+    const keys = Object.keys(this.accounts.wallet);
+    const elements: Interfaces.IAccaunt[] = [];
+
+    for (let key = 0; key < keys.length; key++) {
+      let accaunt = this.accounts.wallet[key.toString()];
+      try {
+        elements.push({
+          address: accaunt['address'],
+          privateKey: accaunt['privateKey']
+        });
+      } catch (err) {
+        break;
+      }
+    }
+
+    return elements;
+  }
+
+  public onAddresses(data: Interfaces.IPaginate): string[] {
+    if (data.skip >= data.take) {
+      throw new Error(`skip can't be bigger than take`);
+    }
+    if (data.take <= 0) {
+      throw new Error(`take can not be zero`);
+    }
+
+    const skip = +data.skip || 0;
+    const take = +data.take || Config.ENV.numberOf;
+    const wallet = this.onWalletExport();
+    const addresses = [];
+
+    for (let i = skip; i <= take; i++) {
+      addresses.push(wallet[i].address);
+    }
+
+    return addresses;
   }
 
 }

@@ -6,3 +6,4 @@ tmp/
 temp/
 
 *.sqlite
+.DS_Store

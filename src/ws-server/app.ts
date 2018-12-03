@@ -5,7 +5,7 @@ import * as http from 'http';
 import * as WebSocket from 'ws';
 import * as path from 'path';
 
-import { Config, Interfaces } from '../config/base';
+import { Config } from '../config/base';
 import { Web3Control } from '../controlers/web3';
 import { WsConfig } from './config';
 import { wsforeman } from './ws';
@@ -26,7 +26,7 @@ export class WsServer {
   private wallet: Web3Control;
 
 
-  constructor(port: number = 8999, password: string) {
+  constructor(port: number = Config.ENV.port, password: string) {
     this.wallet = new Web3Control(password, Config.ENV.numberOf);
     this.port = port;
     this.ws = new WebSocket.Server({ server });

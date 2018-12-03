@@ -1,6 +1,6 @@
 import { getConnection } from 'typeorm';
-import { from, of } from 'rxjs';
-import { map, mergeMap } from 'rxjs/operators';
+import { from } from 'rxjs';
+import { map } from 'rxjs/operators';
 import { validate } from 'class-validator';
 
 import { Interfaces } from '../config/base';
@@ -8,8 +8,6 @@ import { Account } from '../entity/accaunt';
 import { Cipherparams } from '../entity/cipherparams';
 import { Kdfparams } from '../entity/kdfparams';
 import { Crypto } from '../entity/crypto';
-import { Address } from '../entity/address';
-import { Tx } from '../entity/tx';
 
 
 export class Storage {
@@ -97,77 +95,6 @@ export class Storage {
         console.log('fail');
       }
     }).unsubscribe();
-  }
-
-  public async createAddress(addresses: string[]) {
-    const cursor = await this.connet();
-
-    const source = from(addresses);
-
-    const deps = source.pipe(map(address => {
-      return new Address(address);
-    }));
-
-    deps.subscribe(async el => {
-      try {
-        await cursor.manager.save(Address, el);
-      } catch (err) {
-        console.log('fail address write');
-      }
-    });
-  }
-
-  public async getAddresses(data: Interfaces.IPaginate): Promise<Address[]> {
-    const cursor = await this.connet();
-    const addresses = await cursor.manager.find(Address, data);
-
-    return addresses;
-  }
-
-  public async onAddress(address: string): Promise<Address> {
-    const cursor = await this.connet();
-
-    return await cursor.manager.findOne(Address, {
-      where: { address: address }
-    });
-  }
-
-  public async count(): Promise<number> {
-    const cursor = await this.connet();
-
-    return await cursor.manager.count(Address);
-  }
-
-  public async onSetTx(data: object): Promise<void> {
-    const cursor = await this.connet();
-    const tx = new Tx();
-
-    tx.transactionHash = data['transactionHash'];
-    tx.address = data['address']['id'];
-
-    try {
-      cursor.manager.save(Tx, tx);
-    } catch (err) {
-      return null;
-    }
-  }
-
-  public async onUpdateTx(block: Tx): Promise<void> {
-    const cursor = await this.connet();
-    const tx = new Tx();
-
-    Object.keys(block).forEach(key => {
-      tx[key] = block[key];
-    });
-
-    try {
-      cursor.manager.update(Tx,
-        { transactionHash: tx.transactionHash },
-        tx
-      );
-    } catch (err) {
-      return null;
-    }
   }
 
 }

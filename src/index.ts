@@ -2,11 +2,12 @@ import { createConnection } from 'typeorm';
 
 import { Web3Control } from './controlers/web3';
 import { WsServer } from './ws-server/app';
+import { Utils } from './controlers/utils';
 
 createConnection().then(async connection => {
 
   const ws = new WsServer(8999, '12345678');
- 
+
   // const wallet = new Web3Control('12345678', 100);
 
   
