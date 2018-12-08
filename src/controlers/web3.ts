@@ -253,6 +253,15 @@ export class Web3Control extends Wallet {
     });
   }
 
+  public _onAccountSync(data: Interfaces.ISyncAccaunt) {
+    const addresses = this.onAddresses(data.data);
+    const count = this.utils.toBN(addresses.length);
+    const source = from(addresses);
+    const toEach = from(this.onSingleBalance(data.address)).pipe(
+      map(balance => this.utils.toBN(balance).div(count))
+    );
+  }
+
   public onPoolMapTx(inputs: Interfaces.ITxFuncInput) {
     /**
      * @param inputs: Inputs object for Sendig transactionCount.
