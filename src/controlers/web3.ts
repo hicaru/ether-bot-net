@@ -2,7 +2,7 @@ import 'colors';
 import { from, Observable, of } from 'rxjs';
 import {
   map, mergeMap, toArray,
-  catchError, timeout
+  catchError, delay
 } from 'rxjs/operators';
 
 import { Wallet } from '../ether/wallet';
@@ -59,14 +59,16 @@ export class Web3Control extends Wallet {
       console.log(
         `[tx hash]: ${blockOrHash.hash},`.green,
         `[to]: ${data.to},`.blue,
-        `[gas price]: ${this.utils.fromWei(data.gasPrice, 'gwei')} gwei`.red
+        `[gas price]: ${this.utils.fromWei(data.gasPrice, 'gwei')} gwei`.red,
+        `[value]: ${this.utils.fromWei(data.value, 'ether')} ETH,`.magenta,
       );
     } else if (blockOrHash.block) {
       console.log(
         `[block number]: ${blockOrHash.block.blockNumber},`.blue,
         '[status]: ' + blockOrHash.block.status ? 'true'.green : 'false'.red,
         `[address]: ${data.from}`.cyan,
-        `[tx hash]: ${blockOrHash.block.transactionHash}`.white
+        `[tx hash]: ${blockOrHash.block.transactionHash}`.white,
+        `[value]: ${this.utils.fromWei(data.value, 'ether')} ETH,`.magenta,
       );
     }
 
@@ -254,11 +256,10 @@ export class Web3Control extends Wallet {
   public onPoolMapTx(inputs: Interfaces.ITxFuncInput) {
     /**
      * @param inputs: Inputs object for Sendig transactionCount.
-     */    
-    const timer = +Utils.onRandom(inputs.time.min, inputs.time.max);    
+     */
     const source = from(this.onAddresses(inputs.data)).pipe(
-      timeout(timer),
       mergeMap(address => {
+        const timer = +Utils.onRandom(inputs.time.min, inputs.time.max);  
         const value = this.utils.toBN(Utils.onRandom(+inputs.min, +inputs.max));
         const gasPrice = this.utils.toBN(Utils.onRandom(+inputs.gas.min, +inputs.gas.max));
         const data =  <Interfaces.ITxData>{
@@ -268,8 +269,11 @@ export class Web3Control extends Wallet {
           gasPrice: gasPrice,
           data: inputs.contractCode
         };
-        
-        return this.onSingleTx(data);
+
+        return of(null).pipe(
+          delay(timer),
+          mergeMap(_ => this.onSingleTx(data))
+        );
       })
     );
 

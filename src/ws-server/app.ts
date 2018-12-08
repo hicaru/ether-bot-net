@@ -68,7 +68,7 @@ export class WsServer {
           gasPrice: this.wallet.gasPrice,
           gasLimit: this.wallet.gasLimit,
           gasUsed: this.wallet.gasUsed,
-          addresses: this.wallet.onWalletExport()
+          addresses: this.wallet.addresses
         }
       }));
   
