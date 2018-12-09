@@ -1,42 +1,30 @@
-import * as crypto from 'crypto';
+import * as Web3 from 'web3';
+import { Web3Interfaces } from '../ether/web3-Interface';
+
+
+const web3Utils: Web3Interfaces.IUtils = Web3.utils;
 
 export class Utils {
 
-  private readonly algorithm: string = 'aes-256-ctr';
-
-  public static onRandom(min: number, max: number): number | string {
+  public static onRandom(min: number | string, max: number | string): number | string {
     let rand: number;
-
+  
     if (min === max) {
-      return max.toFixed();
+      return web3Utils.toBN(max);
     } else if (max == 0) {
       return 0;
     }
 
     try {
-      rand = min + Math.random() * (max + 1 - min);
-      return Math.floor(rand).toFixed();
+      const _min = web3Utils.toBN(min);
+      const _max = web3Utils.toBN(max);
+      const _randomInt = web3Utils.toBN(web3Utils.randomHex(1));
+      const _1 = _max.add(web3Utils.toBN(1)).sub(_min);
+      rand = _min.add(_1).mul(_randomInt);
+      return rand;
     } catch (err) {
-      return min.toFixed();
-    }    
-  }
-
-  public encrypt(text: string, password: string) {
-    let cipher = crypto.createCipher(this.algorithm, password);
-    let crypted = cipher.update(text,'utf8','hex');
-    
-    crypted += cipher.final('hex');
-
-    return crypted;
-  }
-   
-  public decrypt(text: string, password: string) {
-    let decipher = crypto.createDecipher(this.algorithm, password);
-    let dec = decipher.update(text,'hex','utf8');
-
-    dec += decipher.final('utf8');
-
-    return dec;
+      return (+min).toFixed();
+    }
   }
 
 }
