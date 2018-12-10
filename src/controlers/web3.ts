@@ -109,8 +109,7 @@ export class Web3Control extends Wallet {
 
     return { gasUsed: this.gasUsed, gasLimit: this.gasLimit };
   }
-
-  public async run(password: string, numberof: number) {
+  private async run(password: string, numberof: number) {
     /**
      * @returns: Decrypt wallet.
      */
@@ -128,18 +127,25 @@ export class Web3Control extends Wallet {
     this.gasLimit = gas.gasLimit;
   }
 
+  
   public onSingleTx(data: Interfaces.ITxData): Observable<Interfaces.ITx> {
     /**
      * @param data: Transaction data object.
     */
     const warp = async () => {
+      let gas: string = await this.eth.estimateGas({
+        to: data.from,
+        data: data.data
+      });
+
       return {
         address: data.from,
         chainId: await this.eth.net.getId(),
         balance: await this.onSingleBalance(data.from),
         nonce: data.nonce || await this.eth.getTransactionCount(data.from),
         gasPrice: this.utils.toHex(data.gasPrice || this.gasPrice),
-        gasLimit: this.utils.toHex(data.gasLimit || this.gasLimit)
+        gasLimit: this.utils.toHex(data.gasLimit || this.gasLimit),
+        gas: gas
       };
     };
     const newTransaction = from(warp());    
@@ -149,17 +155,20 @@ export class Web3Control extends Wallet {
         if (!object.address) {
           throw new Error('address does not exist');
         }
-
-        if (this.utils.toBN(object.balance) <= this.utils.toBN(data.value)) {
+        if (!object.balance) {
+          throw new Error(`[address] ${data.from}, is balance problems`.red);
+        }
+        if (+object.balance <= +data.value) {
           const _gasPrice = this.utils.toBN(object.gasPrice);
-          const _gasLimit = this.utils.toBN(object.gasLimit);
-          data.value = this.utils.toBN(object.balance).sub(_gasPrice.mul(_gasLimit));
+          const _gas = this.utils.toBN(object.gas);
+          data.value = this.utils.toBN(object.balance).sub(_gasPrice.mul(_gas));
         }
 
         data.nonce = object.nonce;
         data.gasLimit = object.gasLimit;
         data.gasPrice = object.gasPrice;
         data.chainId = object.chainId;
+        data.gas = object.gas;
 
         return this.sendTransaction(data);
       }),
@@ -204,7 +213,7 @@ export class Web3Control extends Wallet {
     return addresess;
   }
 
-  public onAccountSync(data: Interfaces.ISyncAccaunt) {
+  public onAccountSync(data: Interfaces.ISyncAccaunt): Observable<Interfaces.ITx> {
     let nonce: number;
     const addresses = this.onAddresses(data.data);
     const count = this.utils.toBN(addresses.length);
@@ -246,13 +255,13 @@ export class Web3Control extends Wallet {
     );
   }
 
-  public onPoolMapTx(inputs: Interfaces.ITxFuncInput) {
+  public onPoolMapTx(inputs: Interfaces.ITxFuncInput): Observable<Interfaces.ITx> {
     /**
      * @param inputs: Inputs object for Sendig transactionCount.
      */
     const source = from(this.onAddresses(inputs.data)).pipe(
       mergeMap(address => {
-        const timer = +Utils.onRandom(inputs.time.min, inputs.time.max);  
+        const timer = +Utils.onRandom(inputs.time.min, inputs.time.max);
         const value = this.utils.toBN(Utils.onRandom(inputs.min, inputs.max));
         const gasPrice = this.utils.toBN(Utils.onRandom(inputs.gas.min, inputs.gas.max));
         const data =  <Interfaces.ITxData>{

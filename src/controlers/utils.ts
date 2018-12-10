@@ -7,7 +7,7 @@ const web3Utils: Web3Interfaces.IUtils = Web3.utils;
 export class Utils {
 
   public static onRandom(min: number | string, max: number | string): number | string {
-    let rand: number;
+    let rand: number | string = web3Utils.toBN(0);
   
     if (min === max) {
       return web3Utils.toBN(max);
@@ -17,19 +17,10 @@ export class Utils {
       return max;
     }
 
-    try {
-      const _min = web3Utils.toBN(min);
-      const _max = web3Utils.toBN(max);
-      const _randomInt = web3Utils.toBN(web3Utils.randomHex(1));
-      
-      rand = _randomInt.mul(
-        (_max.sub(_min)).add(_min)
-      );
+    const _min = Math.ceil(+min);
+    const _max = Math.floor(+max);
 
-      return rand;
-    } catch (err) {
-      return (+min).toFixed();
-    }
+    return Math.floor(Math.random() * (_max - _min)) + _min;
   }
 
 }

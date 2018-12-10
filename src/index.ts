@@ -8,6 +8,8 @@ createConnection().then(async connection => {
 
   const ws = new WsServer(8999, '12345678');
 
+  // const r = Utils.onRandom('1000000000000000', '100000000000000000');
+  // console.log(r.toString());
   // const wallet = new Web3Control('12345678', 100);
 
   // setTimeout(() => {
