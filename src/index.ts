@@ -10,11 +10,13 @@ createConnection().then(async connection => {
 
   // const wallet = new Web3Control('12345678', 100);
 
-  
+  // setTimeout(() => {
+  //   wallet._onAccountSync({
+  //     address: '0x74a7360A5700c8ACe72A253c360DbaDF2b9526D6',
+  //     data: {skip: 0, take: 100}
+  //   }).subscribe(console.log);
+  // }, 2000);
 
-  // wallet.onAccountSync({
-  //   address: '0xff475a95C6cA681C7947FF6Dda91edFc57F79761'
-  // }).then(test => test.subscribe(console.log));
 
   // wallet.onAllBalance({ take: 100, skip: 0 }).subscribe(console.log);
 

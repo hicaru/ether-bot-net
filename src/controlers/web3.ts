@@ -2,7 +2,7 @@ import 'colors';
 import { from, Observable, of } from 'rxjs';
 import {
   map, mergeMap, toArray,
-  catchError, delay
+  catchError, delay, filter
 } from 'rxjs/operators';
 
 import { Wallet } from '../ether/wallet';
@@ -57,9 +57,9 @@ export class Web3Control extends Wallet {
  
     if (blockOrHash.hash) {
       console.log(
-        `[tx hash]: ${blockOrHash.hash},`.green,
+        `[hash]: ${blockOrHash.hash},`.green,
         `[to]: ${data.to},`.blue,
-        `[gas price]: ${this.utils.fromWei(data.gasPrice, 'gwei')} gwei`.red,
+        `[gasPrice]: ${this.utils.fromWei(data.gasPrice, 'gwei')} gwei`.red,
         `[value]: ${this.utils.fromWei(data.value, 'ether')} ETH,`.magenta,
       );
     } else if (blockOrHash.block) {
@@ -75,7 +75,7 @@ export class Web3Control extends Wallet {
     if (blockOrHash.error) {
       const txFree = (+data.gasPrice * +data.gas).toString();
       console.log(
-        `[skip tx address]: ${data.from} tx fail,`.red,
+        `[address]: ${data.from},`.red,
         `[value]: ${this.utils.fromWei(data.value, 'ether')} ETH,`.magenta,
         `[gas price]: ${this.utils.fromWei(data.gasPrice, 'ether')} ETH,`.magenta,
         `[Cost/Fee]: ${this.utils.fromWei(txFree, 'ether')} ETH`.magenta,
@@ -86,7 +86,7 @@ export class Web3Control extends Wallet {
     if (blockOrHash.message) {
       const txFree = (+data.gasPrice * +data.gas).toString();
       console.log(
-        `[skip tx address]: ${data.from} tx fail,`.red,
+        `[address]: ${data.from},`.red,
         `[value]: ${this.utils.fromWei(data.value, 'ether')} ETH,`.magenta,
         `[gas price]: ${this.utils.fromWei(data.gasPrice, 'ether')} ETH,`.magenta,
         `[Cost/Fee]: ${this.utils.fromWei(txFree, 'ether')} ETH`.magenta,
@@ -204,61 +204,45 @@ export class Web3Control extends Wallet {
     return addresess;
   }
 
-  public async onAccountSync(data: Interfaces.ISyncAccaunt) {
-    /**
-     * @param address: Ether address in hex.
-     * @param data: Type orm data limit and ofset.
-     */
+  public onAccountSync(data: Interfaces.ISyncAccaunt) {
+    let nonce: number;
     const addresses = this.onAddresses(data.data);
     const count = this.utils.toBN(addresses.length);
-    const balance = this.utils.toBN(await this.onSingleBalance(data.address));
-    const toEach = balance.div(count);
-    const source = from(addresses);
+    const toEach = from(this.onSingleBalance(data.address)).pipe(
+      map(balance => this.utils.toBN(balance).div(count))
+    );
+    const manyData = from(this.eth.getTransactionCount(data.address)).pipe(
+      mergeMap(startedNonce => {
+        nonce = +startedNonce;
+        return from(toEach).pipe(
+          mergeMap(toEachValue => {
+            return from(addresses).pipe(
+              filter(address => address !== data.address),
+              map(address => {
+                const gasPrice = this.utils.toBN(data.gasPrice || this.gasPrice);
+                const gasLimit = this.utils.toBN(data.gasLimit || this.gasLimit);
+                const valueAmount = toEachValue.sub(gasPrice.mul(gasLimit));
+                const transactionData: Interfaces.ITxData = {
+                  nonce: nonce.toString(),
+                  from: data.address,
+                  to: address,
+                  value: valueAmount.toString(),
+                  gasPrice: gasPrice.toString(),
+                  gasLimit: gasLimit.toString()
+                };
 
-    let nonce = await this.eth.getTransactionCount(data.address);
+                nonce++;
 
-    const txsDataPool = source.pipe(
-      map(address => {
-        // Create pool data tx. //
-        const forTxData: Interfaces.ITxData = {
-          nonce: nonce,
-          from: data.address,
-          to: address,
-          value: toEach,
-          gasPrice: this.utils.toBN(data.gasPrice || this.gasPrice)
-        };
-
-        nonce++;
-        
-        return forTxData;
+                return transactionData;
+              })
+            );
+          })
+        );
       })
     );
 
-    return new Observable(observer => {
-      let k: number = 0;
-
-      txsDataPool.forEach(async dataPromise => {
-        const data = await dataPromise;
-        const tx = await this.onSingleTx(data);
-
-        tx.subscribe(block => {
-          observer.next(block);
-        }, err => {
-          observer.next({ error: err})
-          k++;
-        }, () => k++);
-
-        if (k >= addresses.length) return observer.unsubscribe();
-      });
-    });
-  }
-
-  public _onAccountSync(data: Interfaces.ISyncAccaunt) {
-    const addresses = this.onAddresses(data.data);
-    const count = this.utils.toBN(addresses.length);
-    const source = from(addresses);
-    const toEach = from(this.onSingleBalance(data.address)).pipe(
-      map(balance => this.utils.toBN(balance).div(count))
+    return manyData.pipe(
+      mergeMap(transactionData => this.onSingleTx(transactionData))
     );
   }
 
@@ -269,8 +253,8 @@ export class Web3Control extends Wallet {
     const source = from(this.onAddresses(inputs.data)).pipe(
       mergeMap(address => {
         const timer = +Utils.onRandom(inputs.time.min, inputs.time.max);  
-        const value = this.utils.toBN(Utils.onRandom(+inputs.min, +inputs.max));
-        const gasPrice = this.utils.toBN(Utils.onRandom(+inputs.gas.min, +inputs.gas.max));
+        const value = this.utils.toBN(Utils.onRandom(inputs.min, inputs.max));
+        const gasPrice = this.utils.toBN(Utils.onRandom(inputs.gas.min, inputs.gas.max));
         const data =  <Interfaces.ITxData>{
           from: address,
           to: inputs.address,

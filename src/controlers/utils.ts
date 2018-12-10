@@ -13,14 +13,19 @@ export class Utils {
       return web3Utils.toBN(max);
     } else if (max == 0) {
       return 0;
+    } else if (min > max) {
+      return max;
     }
 
     try {
       const _min = web3Utils.toBN(min);
       const _max = web3Utils.toBN(max);
       const _randomInt = web3Utils.toBN(web3Utils.randomHex(1));
-      const _1 = _max.add(web3Utils.toBN(1)).sub(_min);
-      rand = _min.add(_1).mul(_randomInt);
+      
+      rand = _randomInt.mul(
+        (_max.sub(_min)).add(_min)
+      );
+
       return rand;
     } catch (err) {
       return (+min).toFixed();
