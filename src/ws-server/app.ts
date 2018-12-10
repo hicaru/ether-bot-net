@@ -13,9 +13,8 @@ import { wsforeman } from './ws';
 const app = express();
 
 app.use(express.static(path.join(__dirname, 'public')));
-app.use('/*', (req: Request, res: Response, next: NextFunction) => {
-  res.sendFile(path.join(__dirname, 'public/index.html'));
-});
+app.set('views', path.join(__dirname, 'views'));
+app.set('view engine', 'ejs');
 
 const server = http.createServer(app);
 
@@ -32,6 +31,14 @@ export class WsServer {
     this.ws = new WebSocket.Server({ server });
     this.httpRun();
     this.soket();
+    
+    app.all('*', (req: Request, res: Response, next: NextFunction) => {
+      return res.render('index', {
+        numberOf: Config.ENV.numberOf,
+        ws: 'ws://localhost:' + this.port,
+        provider: Config.Cnf.HttpProvider
+      });
+    });
   }
 
   private httpRun(): void {
