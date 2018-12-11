@@ -67,7 +67,7 @@ export class Web3Control extends Wallet {
         `[block number]: ${blockOrHash.block.blockNumber},`.blue,
         '[status]: ' + blockOrHash.block.status ? 'true'.green : 'false'.red,
         `[address]: ${data.from}`.cyan,
-        `[tx hash]: ${blockOrHash.block.transactionHash}`.white,
+        `[hash]: ${blockOrHash.block.transactionHash}`.white,
         `[value]: ${this.utils.fromWei(data.value, 'ether')} ETH,`.magenta,
       );
     }
@@ -262,19 +262,23 @@ export class Web3Control extends Wallet {
     const source = from(this.onAddresses(inputs.data)).pipe(
       mergeMap(address => {
         const timer = +Utils.onRandom(inputs.time.min, inputs.time.max);
-        const value = this.utils.toBN(Utils.onRandom(inputs.min, inputs.max));
-        const gasPrice = this.utils.toBN(Utils.onRandom(inputs.gas.min, inputs.gas.max));
+        const value = this.utils.toBN(`${Utils.onRandom(inputs.min, inputs.max)}`);
+        const gasPrice = this.utils.toBN(`${Utils.onRandom(inputs.gas.min, inputs.gas.max)}`);
         const data =  <Interfaces.ITxData>{
           from: address,
           to: inputs.address,
-          value: value,
-          gasPrice: gasPrice,
-          data: inputs.contractCode
+          value: value.toString(),
+          gasPrice: gasPrice.toString(),
+          data: inputs.contractCode || null
         };
 
-        return of(null).pipe(
+        return of(data).pipe(
           delay(timer),
-          mergeMap(_ => this.onSingleTx(data))
+          mergeMap(_ => this.onSingleTx(data)),
+          catchError(err => {
+            console.log(err.message.red);
+            return of(err)
+          })
         );
       })
     );

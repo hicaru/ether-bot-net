@@ -76,6 +76,9 @@ export const wsforeman = async (data: IWs): Promise<void> => {
       break;
 
     case Config.WSEvent.SET_GAS_LIMIT:
+      if (data.body > 1) {
+        data.wallet.gasLimit = data.body;
+      }
       data.ws.send(JSON.stringify({
         type: Config.WSEvent.GET_GAS_LIMIT,
         body: data.wallet.gasLimit
@@ -83,6 +86,9 @@ export const wsforeman = async (data: IWs): Promise<void> => {
       break;
 
     case Config.WSEvent.SET_GAS_PRICE:
+      if (data.body > 1) {
+        data.wallet.gasPrice = data.body;
+      }
       data.ws.send(JSON.stringify({
         type: Config.WSEvent.GET_GAS_PRICE,
         body: data.wallet.gasPrice
