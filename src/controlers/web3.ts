@@ -133,10 +133,14 @@ export class Web3Control extends Wallet {
      * @param data: Transaction data object.
     */
     const warp = async () => {
-      let gas: string = await this.eth.estimateGas({
-        to: data.from,
-        data: data.data
-      });
+      let gas: string;
+
+      if (data.data) {
+        gas = await this.eth.estimateGas({
+          to: data.from,
+          data: data.data
+        });
+      }
 
       return {
         address: data.from,
@@ -163,12 +167,14 @@ export class Web3Control extends Wallet {
           const _gas = this.utils.toBN(object.gas);
           data.value = this.utils.toBN(object.balance).sub(_gasPrice.mul(_gas));
         }
+        if (object.gas) {
+          data.gas = object.gas;
+        }
 
         data.nonce = object.nonce;
         data.gasLimit = object.gasLimit;
         data.gasPrice = object.gasPrice;
         data.chainId = object.chainId;
-        data.gas = object.gas;
 
         return this.sendTransaction(data);
       }),

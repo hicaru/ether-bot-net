@@ -106,7 +106,7 @@ export namespace Interfaces {
 
 export namespace Config {
   export enum Cnf {
-    HttpProvider = 'https://kovan.infura.io/v3/d9877ecb6cf349baa97ca282de1f2ed4'
+    HttpProvider = 'HTTP://127.0.0.1:8545'
   }
 
   export enum ENV {
