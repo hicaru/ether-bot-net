@@ -1,9 +1,3 @@
-import * as Web3 from 'web3';
-import { Web3Interfaces } from '../ether/web3-Interface';
-
-
-const web3Utils: Web3Interfaces.IUtils = Web3.utils;
-
 export class Utils {
 
   public static onRandom(min: number | string, max: number | string): number | string {

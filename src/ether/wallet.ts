@@ -1,11 +1,8 @@
-import * as Web3 from 'web3';
+const Web3 = require('web3');
 
 import { Config } from '../config/base';
 import { Interfaces } from '../config/base';
 import { Observable } from 'rxjs';
-
-import { Web3Interfaces } from './web3-Interface';
-
 
 export class Wallet {
   /**
@@ -20,11 +17,11 @@ export class Wallet {
    * @method sendTransaction: Create and send transaction.
    */
 
-  private _web3: Web3Interfaces.IWeb3 = new Web3(Config.Cnf.HttpProvider);
+  private _web3 = new Web3(Config.Cnf.HttpProvider);
   protected eth = this._web3.eth;
   protected accounts = this._web3.eth.accounts;
   
-  public utils: Web3Interfaces.IUtils = this._web3.utils;
+  public utils = this._web3.utils;
   public addresses: string[];
 
   constructor() { }
@@ -59,7 +56,7 @@ export class Wallet {
     return this.accounts.wallet.encrypt(password);
   }
 
-  protected sendTransaction(data: Interfaces.ITxData): Observable<Interfaces.ITx> {
+  protected sendTransaction(data) {
     return new Observable(ObservableTx => {
       this._web3.eth.sendTransaction(data, (err, hash) => {
         if (err) {

@@ -59,8 +59,8 @@ export class Web3Control extends Wallet {
       console.log(
         `[hash]: ${blockOrHash.hash},`.green,
         `[to]: ${data.to},`.blue,
-        `[gasPrice]: ${this.utils.fromWei(data.gasPrice, 'gwei')} gwei`.red,
-        `[value]: ${this.utils.fromWei(data.value, 'ether')} ETH,`.magenta,
+        `[gasPrice]: ${this.utils.fromWei(String(data.gasPrice), 'gwei')} gwei`.red,
+        `[value]: ${this.utils.fromWei(String(data.value), 'ether')} ETH,`.magenta,
       );
     } else if (blockOrHash.block) {
       console.log(
@@ -68,7 +68,7 @@ export class Web3Control extends Wallet {
         '[status]: ' + blockOrHash.block.status ? 'true'.green : 'false'.red,
         `[address]: ${data.from}`.cyan,
         `[hash]: ${blockOrHash.block.transactionHash}`.white,
-        `[value]: ${this.utils.fromWei(data.value, 'ether')} ETH,`.magenta,
+        `[value]: ${this.utils.fromWei(String(data.value), 'ether')} ETH,`.magenta,
       );
     }
 
@@ -76,8 +76,8 @@ export class Web3Control extends Wallet {
       const txFree = (+data.gasPrice * +data.gas).toString();
       console.log(
         `[address]: ${data.from},`.red,
-        `[value]: ${this.utils.fromWei(data.value, 'ether')} ETH,`.magenta,
-        `[gas price]: ${this.utils.fromWei(data.gasPrice, 'ether')} ETH,`.magenta,
+        `[value]: ${this.utils.fromWei(String(data.value), 'ether')} ETH,`.magenta,
+        `[gas price]: ${this.utils.fromWei(String(data.gasPrice), 'ether')} ETH,`.magenta,
         `[Cost/Fee]: ${this.utils.fromWei(txFree, 'ether')} ETH`.magenta,
         blockOrHash.error
       );
@@ -87,8 +87,8 @@ export class Web3Control extends Wallet {
       const txFree = (+data.gasPrice * +data.gas).toString();
       console.log(
         `[address]: ${data.from},`.red,
-        `[value]: ${this.utils.fromWei(data.value, 'ether')} ETH,`.magenta,
-        `[gas price]: ${this.utils.fromWei(data.gasPrice, 'ether')} ETH,`.magenta,
+        `[value]: ${this.utils.fromWei(String(data.value), 'ether')} ETH,`.magenta,
+        `[gas price]: ${this.utils.fromWei(String(data.gasPrice), 'ether')} ETH,`.magenta,
         `[Cost/Fee]: ${this.utils.fromWei(txFree, 'ether')} ETH`.magenta,
         blockOrHash.message
       );
@@ -96,7 +96,7 @@ export class Web3Control extends Wallet {
   }
   private async onGas(): Promise<{gasUsed: number | string, gasLimit: number | string}> {
     const blockNumber = await this.eth.getBlockNumber();
-    const block: Interfaces.IBlock = await this.eth.getBlock(blockNumber);
+    const block = await this.eth.getBlock(blockNumber);
     const gasPrice = await this.eth.getGasPrice();
 
     this.gasLimit = block.gasLimit ? block.gasLimit : 21000;
@@ -133,7 +133,7 @@ export class Web3Control extends Wallet {
      * @param data: Transaction data object.
     */
     const warp = async () => {
-      let gas: string;
+      let gas = null;
 
       if (data.data) {
         gas = await this.eth.estimateGas({
@@ -165,7 +165,8 @@ export class Web3Control extends Wallet {
         if (+object.balance <= +data.value) {
           const _gasPrice = this.utils.toBN(object.gasPrice);
           const _gas = this.utils.toBN(object.gas);
-          data.value = this.utils.toBN(object.balance).sub(_gasPrice.mul(_gas));
+
+          data.value = String(this.utils.toBN(object.balance).sub(_gasPrice.mul(_gas)));
         }
         if (object.gas) {
           data.gas = object.gas;
@@ -202,12 +203,12 @@ export class Web3Control extends Wallet {
       mergeMap(address => {
         return from(this.onSingleBalance(address)).pipe(
           map(balance => {
-            const gwei = this.utils.toBN(this.utils.unitMap.Gwei);
-            const unit = balance > gwei ? 'ether' : 'wei';
+            const gwei = this.utils.toBN(this.utils.unitMap().Gwei);
+            const unit = Number(balance) > Number(gwei) ? 'ether' : 'wei';
 
             return <Interfaces.IBalance>{
               address: address,
-              balance: `${this.utils.fromWei(balance, unit)}${unit}`,
+              balance: `${this.utils.fromWei(String(balance), unit)}${unit}`,
               unit256: balance
             }
           })
